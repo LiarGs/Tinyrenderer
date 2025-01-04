@@ -14,7 +14,7 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-
+include_directories(Base)
 
 file(GLOB SOURCES Base/*.h Base/*.cpp)
 add_subdirectory(Assignment1)

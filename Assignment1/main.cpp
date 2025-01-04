@@ -1,7 +1,11 @@
-﻿#include "../Base/tgaimage.h"
+﻿#include "tgaimage.h"
+#include "model.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255, TGAImage::RGB);
 const TGAColor red = TGAColor(255, 0, 0, 255, TGAImage::RGB);
+Model *model = nullptr;
+const int width = 800;
+const int height = 800;
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color)
 {
@@ -45,11 +49,36 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color
 
 int main(int argc, char **argv)
 {
-    TGAImage image(100, 100, TGAImage::RGB);
-    line(13, 20, 80, 40, image, white);
-    line(20, 13, 40, 80, image, red);
-    line(80, 40, 13, 20, image, red);
-    image.flip_vertically();
+    if (2 == argc)
+    {
+        model = new Model(argv[1]);
+    }
+    else
+    {
+        model = new Model("../../../obj/african_head/african_head.obj");
+    }
+
+    TGAImage image(width, height, TGAImage::RGB);
+    for (int i = 0; i < model->nfaces(); i++)
+    {
+        std::vector<int> face = model->face(i); // 获取第 i 个面的顶点索引
+        // 遍历面的三个顶点，绘制线段
+        for (int j = 0; j < 3; j++)
+        {
+            Vec3f v0 = model->vert(face[j]);
+            Vec3f v1 = model->vert(face[(j + 1) % 3]);
+            // 坐标变换，将模型坐标系中的坐标转换到屏幕坐标系中
+            int x0 = static_cast<int>((v0.x + 1.) * width / 2.f);
+            int y0 = static_cast<int>((v0.y + 1.) * height / 2.f);
+            int x1 = static_cast<int>((v1.x + 1.) * width / 2.f);
+            int y1 = static_cast<int>((v1.y + 1.) * height / 2.f);
+            line(x0, y0, x1, y1, image, white);
+            // LOGI("line: (%d, %d) -> (%d, %d)", x0, y0, x1, y1);
+        }
+    }
+
+    // image.flip_vertically();
     image.write_tga_file("output.tga");
+    delete model;
     return 0;
 }
