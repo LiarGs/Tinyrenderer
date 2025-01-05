@@ -32,6 +32,7 @@ struct TGAColor
     std::uint8_t &operator[](const int i) { return bgra[i]; }
 };
 
+
 // TGAImage 结构体用于表示 TGA 图像
 class TGAImage
 {
@@ -64,3 +65,7 @@ private:
     std::uint8_t bpp = 0; // 每像素字节数
     std::vector<std::uint8_t> data = {}; // 图像数据
 };
+
+const TGAColor white = TGAColor(255, 255, 255, 255, TGAImage::RGB);
+static const TGAColor red = TGAColor(255, 0, 0, 255, TGAImage::RGB);
+static const TGAColor green = TGAColor(0, 255, 0, 255, TGAImage::RGB);

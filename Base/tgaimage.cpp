@@ -246,8 +246,8 @@ TGAColor TGAImage::get(const int x, const int y) const
         return {};
     TGAColor ret = {0, 0, 0, 0, bpp};
     const std::uint8_t *p = data.data() + (x + y * w) * bpp;
-    for (int i = bpp; i--; ret.bgra[i] = p[i])
-        ;
+    std::copy(p, p + bpp, ret.bgra);
+    
     return ret;
 }
 

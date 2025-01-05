@@ -8,19 +8,21 @@
 
 Model::Model(const char *filename) : verts_(), faces_()
 {
+    // 读取模型文件
     std::ifstream in;
     in.open(filename, std::ifstream::in);
     if (in.fail()) {
         LOGE("Failed to open file: %s", filename);
         return;
     }
+    // 读取模型文件的每一行
     std::string line;
     while (!in.eof())
     {
         std::getline(in, line);
         std::istringstream iss(line.c_str());
-        char trash;
-        if (!line.compare(0, 2, "v "))
+        char trash; // 用于读取无用字符
+        if (!line.compare(0, 2, "v ")) // 顶点
         {
             iss >> trash;
             Vec3f v;
@@ -28,21 +30,20 @@ Model::Model(const char *filename) : verts_(), faces_()
                 iss >> v.raw[i];
             verts_.push_back(v);
         }
-        else if (!line.compare(0, 2, "f "))
+        else if (!line.compare(0, 2, "f ")) // 面
         {
             std::vector<int> f;
             int itrash, idx;
             iss >> trash;
             while (iss >> idx >> trash >> itrash >> trash >> itrash)
             {
-                idx--; // in wavefront obj all indices start at 1, not zero
+                idx--;
                 f.push_back(idx);
             }
             faces_.push_back(f);
         }
     }
     LOGI("model vert# %d face# %d", verts_.size(), faces_.size());
-    // std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
 }
 
 Model::~Model()

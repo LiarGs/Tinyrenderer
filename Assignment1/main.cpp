@@ -1,11 +1,6 @@
 ﻿#include "tgaimage.h"
 #include "model.h"
 
-const TGAColor white = TGAColor(255, 255, 255, 255, TGAImage::RGB);
-const TGAColor red = TGAColor(255, 0, 0, 255, TGAImage::RGB);
-Model *model = nullptr;
-const int width = 800;
-const int height = 800;
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color)
 {
@@ -49,6 +44,10 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color
 
 int main(int argc, char **argv)
 {
+    Model *model = nullptr;
+    const int width = 800;
+    const int height = 800;
+
     if (2 == argc)
     {
         model = new Model(argv[1]);
@@ -62,7 +61,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < model->nfaces(); i++)
     {
         std::vector<int> face = model->face(i); // 获取第 i 个面的顶点索引
-        // 遍历面的三个顶点，绘制线段
+        // 遍历三角形的三个顶点，绘制线段
         for (int j = 0; j < 3; j++)
         {
             Vec3f v0 = model->vert(face[j]);
