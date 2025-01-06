@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include <vector>
-#include "geometry.h"
+#include "Vec.h"
 
 class Model
 {

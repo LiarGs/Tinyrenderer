@@ -4,7 +4,6 @@ project(Assignment2)
 file(GLOB ADDITIONAL_SOURCES "*.h" "*.cpp")
 # 添加更多的文件到 SOURCES 变量中
 list(APPEND SOURCES ${ADDITIONAL_SOURCES})
-message(STATUS "SOURCES: ${SOURCES}")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -2,8 +2,20 @@
 #include "model.h"
 
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color)
+void line(int x0, int y0, int x1, int y1, Image* image, const Color& color)
 {
+    if (!image) // 图像为空，直接返回
+    {
+        return;
+    }
+
+    if (x0 == x1 && y0 == y1) // 线段起点和终点重合，直接绘制一个点
+    {
+        image->set(x0, y0, color);
+        return;
+    }
+
+    // Breseham 算法绘制线段
     bool steep = false; // 标记当前斜率的绝对值是否大于1
     if (std::abs(x0 - x1) < std::abs(y0 - y1))
     {
@@ -27,11 +39,11 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, const TGAColor& color
         if (steep)
         {
             // 如果线段是斜率大于1的，那么线段上的点原本坐标应该是(y,x)
-            image.set(y, x, color);
+            image->set(y, x, color);
         }
         else
         {
-            image.set(x, y, color);
+            image->set(x, y, color);
         }
         error2 += derror2;
         if (error2 > dx)
@@ -56,8 +68,10 @@ int main(int argc, char **argv)
     {
         model = new Model("../../../obj/african_head/african_head.obj");
     }
+    auto image = std::make_unique<TGAImage>(width, height, Image::RGBA);
 
-    TGAImage image(width, height, TGAImage::RGB);
+    // auto image = std::make_unique<PNGImage>(width, height, Image::RGBA); // 这里实现多态
+
     for (int i = 0; i < model->nfaces(); i++)
     {
         std::vector<int> face = model->face(i); // 获取第 i 个面的顶点索引
@@ -71,13 +85,14 @@ int main(int argc, char **argv)
             int y0 = static_cast<int>((v0.y + 1.) * height / 2.f);
             int x1 = static_cast<int>((v1.x + 1.) * width / 2.f);
             int y1 = static_cast<int>((v1.y + 1.) * height / 2.f);
-            line(x0, y0, x1, y1, image, white);
+            line(x0, y0, x1, y1, image.get(), RED);
             // LOGI("line: (%d, %d) -> (%d, %d)", x0, y0, x1, y1);
         }
     }
 
-    // image.flip_vertically();
-    image.write_tga_file("output.tga");
+    // image->flip_vertically();
+    std::string filename = "output";
+    image->write_file(filename);
     delete model;
     return 0;
 }

@@ -43,7 +43,7 @@ Model::Model(const char *filename) : verts_(), faces_()
             faces_.push_back(f);
         }
     }
-    LOGI("model vert# %d face# %d", verts_.size(), faces_.size());
+    LOGI("model vert# %d face# %d", static_cast<int>(verts_.size()), static_cast<int>(faces_.size()));
 }
 
 Model::~Model()

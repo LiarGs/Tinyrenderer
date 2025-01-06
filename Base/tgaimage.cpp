@@ -1,17 +1,16 @@
 ﻿#include <iostream>
 #include <cstring>
+
 #include "tgaimage.h"
 
-TGAImage::TGAImage(const int w, const int h, const int bpp) : w(w), h(h), bpp(bpp), data(w * h * bpp, 0) {}
-
-bool TGAImage::read_tga_file(const std::string& filename)
+bool TGAImage::read_file(const std::string &filename)
 {
     // 以二进制方式打开文件
     std::ifstream in;
     in.open(filename, std::ios::binary);
     if (!in.is_open())
     {
-        LOGE("can't open file %s", const_cast<char*>(filename.data()));
+        LOGE("can't open file %s", const_cast<char *>(filename.data()));
         return false;
     }
     // 读取文件头
@@ -36,7 +35,7 @@ bool TGAImage::read_tga_file(const std::string& filename)
     data = std::vector<std::uint8_t>(nbytes, 0);
     // 处理 TGA 文件数据的读取。
     if (3 == header.datatypecode || 2 == header.datatypecode)
-    {   // 如果 datatypecode 是 2 或 3（代表无压缩的 RGB 或灰度数据），则直接读取图像数据
+    { // 如果 datatypecode 是 2 或 3（代表无压缩的 RGB 或灰度数据），则直接读取图像数据
         in.read(reinterpret_cast<char *>(data.data()), nbytes);
         if (!in.good())
         {
@@ -93,14 +92,14 @@ bool TGAImage::load_rle_data(std::ifstream &in)
             chunkheader++;
             for (int i = 0; i < chunkheader; i++)
             {
-                in.read(reinterpret_cast<char *>(colorbuffer.bgra), bpp);
+                in.read(reinterpret_cast<char *>(const_cast<std::uint8_t *>(colorbuffer.getChannels())), bpp);
                 if (!in.good())
                 {
                     LOGE("an error occured while reading the header");
                     return false;
                 }
                 for (int t = 0; t < bpp; t++)
-                    data[currentbyte++] = colorbuffer.bgra[t];
+                    data[currentbyte++] = colorbuffer.getChannels()[t];
                 currentpixel++;
                 if (currentpixel > pixelcount)
                 {
@@ -112,7 +111,7 @@ bool TGAImage::load_rle_data(std::ifstream &in)
         else
         {
             chunkheader -= 127;
-            in.read(reinterpret_cast<char *>(colorbuffer.bgra), bpp);
+            in.read(reinterpret_cast<char *>(const_cast<std::uint8_t *>(colorbuffer.getChannels())), bpp);
             if (!in.good())
             {
                 LOGE("an error occured while reading the header");
@@ -121,7 +120,7 @@ bool TGAImage::load_rle_data(std::ifstream &in)
             for (int i = 0; i < chunkheader; i++)
             {
                 for (int t = 0; t < bpp; t++)
-                    data[currentbyte++] = colorbuffer.bgra[t];
+                    data[currentbyte++] = colorbuffer.getChannels()[t];
                 currentpixel++;
                 if (currentpixel > pixelcount)
                 {
@@ -134,13 +133,14 @@ bool TGAImage::load_rle_data(std::ifstream &in)
     return true;
 }
 
-bool TGAImage::write_tga_file(const std::string& filename, const bool vflip, const bool rle) const
+bool TGAImage::write_file(std::string &filename, const bool vflip, const bool rle) const
 {
     constexpr std::uint8_t developer_area_ref[4] = {0, 0, 0, 0};
     constexpr std::uint8_t extension_area_ref[4] = {0, 0, 0, 0};
     constexpr std::uint8_t footer[18] = {'T', 'R', 'U', 'E', 'V', 'I', 'S', 'I', 'O', 'N', '-', 'X', 'F', 'I', 'L', 'E', '.', '\0'};
 
-    auto write_check = [](const std::ofstream &out) -> bool {
+    auto write_check = [](const std::ofstream &out) -> bool
+    {
         if (!out.good())
         {
             LOGE("can't dump the tga file");
@@ -150,6 +150,7 @@ bool TGAImage::write_tga_file(const std::string& filename, const bool vflip, con
     };
 
     // 以二进制方式打开文件
+    filename += this->format;
     std::ofstream out;
     out.open(filename, std::ios::binary);
     if (!out.is_open())
@@ -190,7 +191,7 @@ bool TGAImage::write_tga_file(const std::string& filename, const bool vflip, con
     out.write(reinterpret_cast<const char *>(footer), sizeof(footer));
     if (!write_check(out))
         return false;
-    
+
     return true;
 }
 
@@ -240,48 +241,23 @@ bool TGAImage::unload_rle_data(std::ofstream &out) const
     return true;
 }
 
-TGAColor TGAImage::get(const int x, const int y) const
+std::unique_ptr<Color> TGAImage::get(int x, int y) const
 {
     if (!data.size() || x < 0 || y < 0 || x >= w || y >= h)
-        return {};
-    TGAColor ret = {0, 0, 0, 0, bpp};
+        return std::make_unique<TGAColor>(); // 默认颜色
+
+    auto ret = std::make_unique<TGAColor>(0, 0, 0, 0, bpp);
     const std::uint8_t *p = data.data() + (x + y * w) * bpp;
-    std::copy(p, p + bpp, ret.bgra);
-    
+    std::copy(p, p + bpp, ret->getChannels());
+
     return ret;
 }
 
-void TGAImage::set(int x, int y, const TGAColor &c)
+void TGAImage::set(int x, int y, const Color& color)
 {
     if (!data.size() || x < 0 || y < 0 || x >= w || y >= h)
         return;
-    memcpy(data.data() + (x + y * w) * bpp, c.bgra, bpp);
-}
-
-void TGAImage::flip_horizontally()
-{
-    int half = w >> 1;
-    for (int i = 0; i < half; i++)
-        for (int j = 0; j < h; j++)
-            for (int b = 0; b < bpp; b++)
-                std::swap(data[(i + j * w) * bpp + b], data[(w - 1 - i + j * w) * bpp + b]);
-}
-
-void TGAImage::flip_vertically()
-{
-    int half = h >> 1;
-    for (int i = 0; i < w; i++)
-        for (int j = 0; j < half; j++)
-            for (int b = 0; b < bpp; b++)
-                std::swap(data[(i + j * w) * bpp + b], data[(i + (h - 1 - j) * w) * bpp + b]);
-}
-
-inline int TGAImage::width() const
-{
-    return w;
-}
-
-inline int TGAImage::height() const
-{
-    return h;
+    auto tgaColor = TGAColor(color);
+    // const TGAColor *tgaColor = dynamic_cast<const TGAColor *>(&color);
+    memcpy(data.data() + (x + y * w) * bpp, tgaColor.getChannels(), bpp);
 }
