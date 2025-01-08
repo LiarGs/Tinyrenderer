@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <cfloat>
 #include <cmath>
+#include <vector>
 #include <iostream>
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -52,7 +53,7 @@ public:
     Vec3() : x(0), y(0), z(0) {}
     Vec3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
 
-    inline Vec3<T> operator^(const Vec3<T> &v) const { return Vec3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); }
+    inline Vec3<T> operator^(const Vec3<T> &v) const { return Vec3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); } // 叉乘
     inline Vec3<T> operator+(const Vec3<T> &v) const { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
     inline Vec3<T> operator-(const Vec3<T> &v) const { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
     inline Vec3<T> operator*(T f) const { return Vec3<T>(x * f, y * f, z * f); }

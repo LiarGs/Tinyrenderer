@@ -1,7 +1,6 @@
 ﻿#include "tgaimage.h"
 #include "model.h"
 
-
 void line(int x0, int y0, int x1, int y1, Image* image, const Color& color)
 {
     if (!image) // 图像为空，直接返回

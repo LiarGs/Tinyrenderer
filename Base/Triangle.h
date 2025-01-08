@@ -2,7 +2,6 @@
 # include "Vec.h"
 # include <array>
 
-
 class Triangle
 {
 public:
@@ -16,11 +15,11 @@ public:
     Triangle();
     Triangle(const Vec3f& v0,const Vec3f& v1,const Vec3f& v2);
     bool insideTriangle(const Vec3f& p) const;
-    void setVertex(int ind, Vec3f vertex);            /*set i-th vertex coordinates */
-    void setNormal(int ind, Vec3f normal);            /*set i-th vertex normal vector*/
+    void setVertex(int ind, const Vec3f &vertex);     /*set i-th vertex coordinates */
+    void setNormal(int ind, const Vec3f &normal);     /*set i-th vertex normal vector*/
     void setColor(int ind, float r, float g, float b);   /*set i-th vertex color (r: red, g: green, b: blue)*/
     Vec3f getColor() const { return color[0] * 255; } // Only one color per triangle.
-    std::array<float, 4> getBoundingBox() const;
+    std::array<int, 4> getBoundingBox() const;
     std::array<float, 3> computeBarycentric2D(const Vec2f&) const;
     void setTexCoord(int ind, float s, float t); /*set i-th vertex texture coordinate (s: u coordinate, t: v coordinate)*/
     std::array<Vec4f, 3> toVector4() const;

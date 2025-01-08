@@ -2,8 +2,6 @@
 #include "model.h"
 #include "Triangle.h"
 
-#include <tuple>
-
 // 按线绘制三角形(坐标1，坐标2，坐标3，tga指针，颜色)
 void triangle(Vec2i t0, Vec2i t1, Vec2i t2, Image* image, const Color& color)
 {
@@ -45,9 +43,9 @@ void rasterize_triangle(const Triangle &t, Image* image, const Color& color)
     auto [min_x, min_y, max_x, max_y] = t.getBoundingBox();
 
     // Iterate through the pixels and find if the current pixel is inside the triangle
-    for (int x = static_cast<int>(floor(min_x)); x < static_cast<int>(ceil(max_x)); ++x)
+    for (int x = min_x; x < max_x; ++x)
     {
-        for (int y = static_cast<int>(floor(min_y)); y < static_cast<int>(ceil(max_y)); ++y)
+        for (int y = min_y; y < max_y; ++y)
         {
             // Super-sampling for anti-aliasing
             float coverage = 0.0f;

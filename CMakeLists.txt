@@ -14,12 +14,17 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-include_directories(Base)
+include_directories(Base
+                    Base/Test
+                    Base/AntiAliasing
+                    # 添加其他子目录
+)
+# 递归查找Base目录及其子目录下的所有头文件和cpp文件
+file(GLOB_RECURSE SOURCES "Base/*.h" "Base/*.cpp")
 
-file(GLOB SOURCES Base/*.h Base/*.cpp)
 add_subdirectory(Assignment1)
 add_subdirectory(Assignment2)
-# add_subdirectory(Assignment3)
+add_subdirectory(Assignment3)
 # add_subdirectory(Assignment4)
 
 # # 这行使用file(GLOB ...)命令查找当前目录下所有的.h和.cpp文件，并将它们列表赋值给变量SOURCES。

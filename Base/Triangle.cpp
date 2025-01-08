@@ -1,7 +1,6 @@
 #include "Triangle.h"
 #include "Log.h"
 
-
 // Constructor
 Triangle::Triangle() {
     for (int i = 0; i < 3; i++) {
@@ -45,7 +44,7 @@ bool Triangle::insideTriangle(const Vec3f& p) const
 }
 
 // Set i-th vertex coordinates
-void Triangle::setVertex(int ind, Vec3f ver)
+void Triangle::setVertex(int ind, const Vec3f& ver)
 {
     if (ind >= 0 && ind < 3) {
         vertex[ind] = ver;
@@ -53,7 +52,7 @@ void Triangle::setVertex(int ind, Vec3f ver)
 }
 
 // Set i-th vertex normal vector
-void Triangle::setNormal(int ind, Vec3f n) {
+void Triangle::setNormal(int ind, const Vec3f& n) {
     if (ind >= 0 && ind < 3) {
         normal[ind] = n;
     }
@@ -82,7 +81,7 @@ void Triangle::setTexCoord(int ind, float s, float t) {
 }
 
 // Get the bounding box of the triangle
-std::array<float, 4> Triangle::getBoundingBox() const
+std::array<int, 4> Triangle::getBoundingBox() const
 {
     float min_x = FLT_MAX, min_y = FLT_MAX, max_x = FLT_MIN, max_y = FLT_MIN;
     for (const auto &point : vertex)
@@ -92,7 +91,8 @@ std::array<float, 4> Triangle::getBoundingBox() const
         max_x = std::max(max_x, point.x);
         max_y = std::max(max_y, point.y);
     }
-    return {min_x, min_y, max_x, max_y};
+
+    return {static_cast<int>(floor(min_x)), static_cast<int>(floor(min_y)), static_cast<int>(ceil(max_x)), static_cast<int>(ceil(max_y))};
 }
 
 // Compute barycentric coordinates
