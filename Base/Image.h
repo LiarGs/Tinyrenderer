@@ -4,61 +4,41 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <opencv2/opencv.hpp>
 #include "Log.h"
+#include "Vec.h"
+namespace rst {
+    class rasterizer;
+}
 
-// 通用颜色基类
 class Color
 {
-protected:
-    std::vector<std::uint8_t> channels; // 存储颜色
-    std::uint8_t bytespp = 0;           // 每像素字节数
+private:
+    float r, g, b, a;
+
 public:
 
     Color() = default;
-    Color(std::initializer_list<std::uint8_t> ch) : channels(ch) {}
+    Color(float R, float G, float B, float A = 0.0f) : r(R / 255.f), g(G / 255.f), b(B / 255.f), a(A / 255.f) {}
 
-    virtual ~Color() = default;
-
-    // 获取通道值
-    const std::uint8_t& getChannel(size_t index) const
-    {
-        if (index >= channels.size())
-        {
-            throw std::out_of_range("Channel index out of range");
-        }
-        return channels[index];
-    }
-
-    auto getChannels() { return channels.data(); }
-    std::uint8_t &operator[](const int i) { return channels[i]; }
+    auto getVec() const { return Vec3f{r, g, b}; };
 
     // 单独获取颜色通道
-    virtual const std::uint8_t &getRed() const = 0;
-    virtual const std::uint8_t &getGreen() const = 0;
-    virtual const std::uint8_t &getBlue() const = 0;
-    virtual const std::uint8_t &getAlpha() const = 0;
-
-    // 设置通道值
-    void setChannel(size_t index, std::uint8_t value)
-    {
-        if (index >= channels.size())
-        {
-            throw std::out_of_range("Channel index out of range");
-        }
-        channels[index] = value;
-    }
-
+    const auto &getRed() const { return r; }
+    const auto &getGreen() const { return g; }
+    const auto &getBlue() const { return b; }
+    const auto &getAlpha() const { return a; }
 
     // 单独设置颜色通道
-    virtual void setRed(const std::uint8_t& value) = 0;
-    virtual void setGreen(const std::uint8_t& value) = 0;
-    virtual void setBlue(const std::uint8_t& value) = 0;
-    virtual void setAlpha(const std::uint8_t& value) = 0;
-    
+    void setRed(const auto &value) { r = value; }
+    void setGreen(const auto &value) { g = value; }
+    void setBlue(const auto value){ b = value; }
+    void setAlpha(const auto &value) { a = value; }
+
     // 比较两个颜色是否相同
     bool operator==(const Color &other) const
     {
-        return channels == other.channels;
+        return r == other.r && g == other.g && b == other.b && a == other.a;
     }
 
 };
@@ -67,39 +47,39 @@ public:
 class Image
 {
 public:
-    // 通道格式
-    enum Channel_Format
-    {
-        GRAYSCALE = 1,
-        RGB = 3,
-        RGBA = 4
-    };
+    friend class rst::rasterizer;
+
+    // // 通道格式
+    // using GRAYSCALE = float;
+    // using RGB = Vec3f;
+    // using RGBA = Vec4f;
 
     Image() = default;
-    Image(const int w, const int h, const int bpp) : w(w), h(h), bpp(bpp), data(w * h * bpp, 0) {}
+    Image(const int w, const int h, const std::string &format = ".png", const int bpp = 3) : w(w), h(h), format(format), bpp(bpp) { frame_buf.resize(w * h, Vec3f(0.0f)); }
     virtual ~Image() = default;
 
-    virtual bool read_file(const std::string& filename) = 0;
-    virtual bool write_file(std::string& filename, const bool vflip = true, const bool rle = true) const = 0;
-    
+    bool read_file(const std::string& filename, const std::string &image_format);
+    bool write_file(const std::string &filename, const bool vflip = false) const;
+
     void flip_horizontally();
     void flip_vertically();
 
-    std::uint8_t* get_data() { return data.data(); };
-    const std::uint8_t* get_data() const { return data.data(); };
-    int width() const { return w; }
-    int height() const { return h; }
-    virtual const std::uint8_t &bytes_per_pixel() const = 0;
-    virtual const std::string &get_format() const = 0;
+    auto width() const { return w; }
+    auto height() const { return h; }
 
-    virtual void set(const int x, const int y, const Color& color) = 0;
-    virtual std::unique_ptr<Color> get(const int x, const int y) const = 0;
+    auto &get_data() { return frame_buf; };
+    int get_index(const int &x, const int &y) const { return (h - y - 1) * w + x; }
+    const std::uint8_t &bytes_per_pixel() const { return bpp; };
+    const std::string &get_format() const { return format; };
+
+    void set(const int &x, const int &y, const Color &color);
+    Color get(const int &x, const int &y) const;
 
 protected:
     int w = 0;
     int h = 0;
     std::uint8_t bpp;                // 每像素字节数
-    std::string format;             // 图像格式
-    std::vector<std::uint8_t> data = {}; // 图像数据
+    std::string format;             // 图像格式png/jpg
+    std::vector<Vec3f> frame_buf = {}; // 储存图像数据
+    mutable cv::Mat cv_image;
 };
-

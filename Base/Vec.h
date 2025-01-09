@@ -3,117 +3,429 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#include <array>
 
-template <class T>
-class Vec2
+template <class T, size_t N>
+class Vec;
+template <class T, size_t M, size_t N>
+class Matrix;
+
+using Vec2f = Vec<float, 2>;
+using Vec2i = Vec<int, 2>;
+using Vec3f = Vec<float, 3>;
+using Vec3i = Vec<int, 3>;
+using Vec4f = Vec<float, 4>;
+
+using Matrix4f = Matrix<float, 4, 4>;
+using Matrix4i = Matrix<int, 4, 4>;
+
+
+// 基础 Vec 类模板
+template <class T, size_t N>
+class Vec
 {
 public:
     union
     {
-        struct
-        {
-            T u, v;
-        };
-        struct
-        {
-            T x, y;
-        };
-        T raw[2];
-    };
-
-
-    Vec2() : u(0), v(0) {}
-    Vec2(T _u, T _v) : u(_u), v(_v) {}
-    inline Vec2<T> operator+(const Vec2<T> &V) const { return Vec2<T>(u + V.u, v + V.v); }
-    inline Vec2<T> operator-(const Vec2<T> &V) const { return Vec2<T>(u - V.u, v - V.v); }
-    inline Vec2<T> operator*(T f) const { return Vec2<T>(u * f, v * f); }
-    inline T operator*(const Vec2<T> &V) const { return u * V.u + v * V.v; }
-    template <class>
-    friend std::ostream &operator<<(std::ostream &s, Vec2<T> &v);
-};
-
-template <class T>
-class Vec3
-{
-public:
-    union
-    {
-        struct
-        {
-            T x, y, z;
-        };
-        struct
-        {
-            T ivert, iuv, inorm;
-        };
-        T raw[3];
-    };
-
-    Vec3() : x(0), y(0), z(0) {}
-    Vec3(T _x, T _y, T _z) : x(_x), y(_y), z(_z) {}
-
-    inline Vec3<T> operator^(const Vec3<T> &v) const { return Vec3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); } // 叉乘
-    inline Vec3<T> operator+(const Vec3<T> &v) const { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
-    inline Vec3<T> operator-(const Vec3<T> &v) const { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
-    inline Vec3<T> operator*(T f) const { return Vec3<T>(x * f, y * f, z * f); }
-    inline T operator*(const Vec3<T> &v) const { return x * v.x + y * v.y + z * v.z; }
-    float norm() const { return std::sqrt(x * x + y * y + z * z); }
-    Vec3<T> &normalize(T l = 1)
-    {
-        *this = (*this) * (l / norm());
-        return *this;
-    }
-    template <class>
-    friend std::ostream &operator<<(std::ostream &s, Vec3<T> &v);
-};
-
-template <class T>
-class Vec4
-{
-public:
-    union
-    {
-        struct
-        {
+        T raw[N]; // 存储向量数据的数组
+        struct {
             T x, y, z, w;
         };
-        T raw[4];
     };
 
-    Vec4() : x(0), y(0), z(0), w(0) {}
-    Vec4(T _x, T _y, T _z, T _w) : x(_x), y(_y), z(_z), w(_w) {}
+    // 默认构造函数
+    Vec()
+    {
+        std::fill(std::begin(raw), std::end(raw), T(0));
+    }
 
-    inline Vec4<T> operator+(const Vec4<T> &v) const { return Vec4<T>(x + v.x, y + v.y, z + v.z, w + v.w); }
-    inline Vec4<T> operator-(const Vec4<T> &v) const { return Vec4<T>(x - v.x, y - v.y, z - v.z, w - v.w); }
-    inline Vec4<T> operator*(T f) const { return Vec4<T>(x * f, y * f, z * f, w * f); }
-    template <class>
-    friend std::ostream &operator<<(std::ostream &s, Vec4<T> &v); // 重载输出运算符
+    // 构造函数
+    Vec(T value)
+    {
+        std::fill(std::begin(raw), std::end(raw), value);
+    }
+
+    // {}构造函数
+    Vec(std::initializer_list<T> values)
+    {
+        std::copy(values.begin(), values.begin() + N, raw);
+    }
+
+    // 新增的类型转换构造函数
+    template <typename U>
+    Vec(std::initializer_list<U> values)
+    {
+        size_t i = 0;
+        for (auto val : values)
+        {
+            raw[i++] = static_cast<T>(val); // 类型转换
+        }
+    }
+
+    // 实现 head 方法
+    template <size_t M>
+    inline auto head() const
+    {
+        static_assert(M <= N, "Cannot extract more elements than the vector has.");
+        Vec<T, M> result;
+        std::copy(raw, raw + M, result.raw);
+        return result;
+    }
+
+    // 向量加法
+    inline Vec<T, N> operator+(const Vec<T, N> &v) const
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = raw[i] + v.raw[i];
+        }
+        return result;
+    }
+
+    // 向量减法
+    inline Vec<T, N> operator-(const Vec<T, N> &v) const
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = raw[i] - v.raw[i];
+        }
+        return result;
+    }
+
+    // 标量乘法
+    inline Vec<T, N> operator*(T f) const
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = raw[i] * f;
+        }
+        return result;
+    }
+
+    friend Vec<T, N> operator*(T f, const Vec<T, N> &v)
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = v.raw[i] * f;
+        }
+        return result;
+    }
+
+    // 标量除法
+    inline Vec<T, N> operator/(T f) const
+    {
+        if (f == 0)
+        {
+            return *this;
+        }
+
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = this->raw[i] / f;
+        }
+        return result;
+    }
+
+    friend Vec<T, N> operator/(T f, const Vec<T, N> &v)
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = f / v.raw[i];
+        }
+        return result;
+    }
+
+    // 点积
+    inline T operator*(const Vec<T, N> &v) const
+    {
+        T result = 0;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result += raw[i] * v.raw[i];
+        }
+        return result;
+    }
+
+    // 叉乘：仅适用于三维向量
+    inline Vec<T, 3> operator^(const Vec<T, N> &v) const
+    {
+        static_assert(N == 3, "Cross product is only defined for 3D vectors.");
+
+        Vec<T, 3> result;
+        result.raw[0] = raw[1] * v.raw[2] - raw[2] * v.raw[1]; // x
+        result.raw[1] = raw[2] * v.raw[0] - raw[0] * v.raw[2]; // y
+        result.raw[2] = raw[0] * v.raw[1] - raw[1] * v.raw[0]; // z
+        return result;
+    }
+
+    inline Vec<T, 4> toVector4(T w) const
+    {
+        static_assert(N == 3, "toVector4 is only defined for 3D vectors.");
+
+        return Vec<T, 4>{x, y, z, w};
+    }
+
+    // 求模
+    inline T norm() const
+    {
+        T sum = 0;
+        for (size_t i = 0; i < N; ++i)
+        {
+            sum += raw[i] * raw[i];
+        }
+        return std::sqrt(sum);
+    }
+
+    // 归一化
+    inline Vec<T, N> &normalize(T l = 1)
+    {
+        T n = norm();
+        if (n == 0)
+            return *this; // 防止除以零
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            raw[i] = raw[i] * (l / n);
+        }
+        return *this;
+    }
+
+    // 重载输出流
+    friend std::ostream &operator<<(std::ostream &s, const Vec<T, N> &v)
+    {
+        s << "(";
+        for (size_t i = 0; i < N; ++i)
+        {
+            s << v.raw[i];
+            if (i < N - 1)
+                s << ", ";
+        }
+        s << ")";
+        return s;
+    }
 };
 
-typedef Vec2<float> Vec2f;
-typedef Vec2<int> Vec2i;
-typedef Vec3<float> Vec3f;
-typedef Vec3<int> Vec3i;
-typedef Vec4<float> Vec4f;
-
-template <class T>
-std::ostream &operator<<(std::ostream &s, Vec2<T> &v)
+// 基础 Matrix 类模板
+template <class T, size_t M, size_t N>
+class Matrix
 {
-    s << "(" << v.x << ", " << v.y << ")\n";
-    return s;
-}
+public:
+    T m[M][N]; // MxN矩阵的元素
 
-template <class T>
-std::ostream &operator<<(std::ostream &s, Vec3<T> &v)
-{
-    s << "(" << v.x << ", " << v.y << ", " << v.z << ")\n";
-    return s;
-}
+    // 默认构造函数（若M==N 则初始化为单位矩阵,否则为全零矩阵）
+    Matrix()
+    {
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                m[i][j] = (M == N && i == j) ? static_cast<T>(1) : static_cast<T>(0); // 单位矩阵
+            }
+        }
+    }
 
-template <class T>
-std::ostream &operator<<(std::ostream &s, Vec4<T> &v)
-{
-    s << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")\n";
-    return s;
-}
+    // 自定义构造函数
+    Matrix(T v)
+    {
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                m[i][j] = v; // 所有元素初始化为v
+            }
+        }
+    }
+
+    // 重载加法操作符
+    auto operator+(const Matrix<T, M, N> &other) const
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = m[i][j] + other.m[i][j];
+            }
+        }
+        return result;
+    }
+
+    // 重载减法操作符
+    auto operator-(const Matrix<T, M, N> &other) const
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = m[i][j] - other.m[i][j];
+            }
+        }
+        return result;
+    }
+
+    // 重载标量乘法操作符
+    auto operator*(T scalar) const
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = m[i][j] * scalar;
+            }
+        }
+        return result;
+    }
+
+    friend auto operator*(T scalar, const Matrix<T,M,N> &other)
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = scalar * m[i][j];
+            }
+        }
+        return result;
+    }
+
+    // 重载标量除法操作符
+    auto operator/(T scalar) const
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = m[i][j] / scalar;
+            }
+        }
+        return result;
+    }
+
+    friend auto operator/(T scalar, const Matrix<T, M, N> &other)
+    {
+        Matrix<T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = scalar / m[i][j];
+            }
+        }
+        return result;
+    }
+
+    // 重载矩阵乘法操作符
+    auto operator*(const Matrix<T, M, N> &other) const
+    {
+        Matrix <T, M, N> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[i][j] = 0;
+                for (int k = 0; k < N; ++k)
+                {
+                    result.m[i][j] += m[i][k] * other.m[k][j];
+                }
+            }
+        }
+        return result;
+    }
+
+    // 矩阵与Vec的乘法
+    auto operator*(const Vec<T, N> &v) const
+    {
+        Vec<T, M> result;
+        for (int i = 0; i < M; ++i)
+        {
+            result.raw[i] = 0;
+            for (int j = 0; j < N; ++j)
+            {
+                result.raw[i] += m[i][j] * v.raw[j];
+            }
+        }
+        return result;
+    }
+
+    auto transpose() const
+    {
+        Matrix<T, N, M> result;
+        for (int i = 0; i < M; ++i)
+        {
+            for (int j = 0; j < N; ++j)
+            {
+                result.m[j][i] = m[i][j];
+            }
+        }
+        return result;
+    }
+
+    // 求逆矩阵
+    auto inverse() const
+    {
+        static_assert(M == N, "Matrix must be square to compute inverse.");
+
+        Matrix<T, M, N> result;
+        Matrix<T, M, N> temp = *this;
+
+        // 高斯-约当消元法
+        for (int i = 0; i < M; ++i)
+        {
+            // 寻找主元
+            T pivot = temp.m[i][i];
+            if (pivot == 0)
+            {
+                throw std::runtime_error("Matrix is singular and cannot be inverted.");
+            }
+
+            // 将主元所在行归一化
+            for (int j = 0; j < N; ++j)
+            {
+                temp.m[i][j] /= pivot;
+                result.m[i][j] /= pivot;
+            }
+
+            // 消去其他行的主元
+            for (int k = 0; k < M; ++k)
+            {
+                if (k != i)
+                {
+                    T factor = temp.m[k][i];
+                    for (int j = 0; j < N; ++j)
+                    {
+                        temp.m[k][j] -= factor * temp.m[i][j];
+                        result.m[k][j] -= factor * result.m[i][j];
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // 重载输出运算符
+    template <class>
+    friend std::ostream &operator<<(std::ostream &s, Matrix<T, M, N> &matrix)
+    {
+        for (int i = 0; i < M; ++i)
+        {
+            s << "| ";
+            for (int j = 0; j < N; ++j)
+            {
+                s << matrix.m[i][j] << " ";
+            }
+            s << "|" << std::endl;
+        }
+        return s;
+    }
+};

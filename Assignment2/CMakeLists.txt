@@ -6,6 +6,9 @@ file(GLOB ADDITIONAL_SOURCES "*.h" "*.cpp")
 list(APPEND SOURCES ${ADDITIONAL_SOURCES})
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBRARIES})
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
 )

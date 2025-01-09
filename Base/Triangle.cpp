@@ -4,10 +4,10 @@
 // Constructor
 Triangle::Triangle() {
     for (int i = 0; i < 3; i++) {
-        vertex[i] = Vec3f(0, 0, 0);
-        color[i] = Vec3f(1, 1, 1); // default color white
-        tex_coords[i] = Vec2f(0, 0);
-        normal[i] = Vec3f(0, 0, 0);
+        vertex[i] = Vec3f{0, 0, 0};
+        color[i] = Vec3f{1, 1, 1}; // default color white
+        tex_coords[i] = Vec2f{0, 0};
+        normal[i] = Vec3f{0, 0, 0};
     }
 }
 
@@ -16,9 +16,9 @@ Triangle::Triangle(const Vec3f& v0, const Vec3f& v1,const Vec3f& v2) {
     vertex[1] = v1;
     vertex[2] = v2;
     for (int i = 0; i < 3; i++) {
-        color[i] = Vec3f(1, 1, 1); // default color white
-        tex_coords[i] = Vec2f(0, 0);
-        normal[i] = Vec3f(0, 0, 0);
+        color[i] = Vec3f{1, 1, 1}; // default color white
+        tex_coords[i] = Vec2f{0, 0};
+        normal[i] = Vec3f{0, 0, 0};
     }
 }
 
@@ -69,16 +69,18 @@ void Triangle::setColor(int ind, float r, float g, float b) {
         exit(-1);
     }
 
-    color[ind] = Vec3f((float)r / 255.f, (float)g / 255.f, (float)b / 255.f);
+    color[ind] = Vec3f{(float)r / 255.f, (float)g / 255.f, (float)b / 255.f};
     return;
 }
 
 // Set i-th vertex texture coordinate
-void Triangle::setTexCoord(int ind, float s, float t) {
+void Triangle::setTexCoord(int ind, const Vec2f &uv)
+{
     if (ind >= 0 && ind < 3) {
-        tex_coords[ind] = Vec2f(s, t);
+        tex_coords[ind] = uv;
     }
 }
+
 
 // Get the bounding box of the triangle
 std::array<int, 4> Triangle::getBoundingBox() const
@@ -96,7 +98,8 @@ std::array<int, 4> Triangle::getBoundingBox() const
 }
 
 // Compute barycentric coordinates
-std::array<float, 3> Triangle::computeBarycentric2D(const Vec2f& p) const {
+std::array<float, 3> Triangle::computeBarycentric2D(const Vec2f &p) const
+{
 
     // Define a lambda for the common formula
     auto computeCoefficient = [&](int i, int j, int k) -> float
@@ -116,14 +119,13 @@ std::array<float, 3> Triangle::computeBarycentric2D(const Vec2f& p) const {
 }
 
 // Convert to vector of Vec4f
-std::array<Vec4f, 3> Triangle::toVector4() const
+std::array<Vec4f, 3> Triangle::toVector4(const std::array<Vec3f, 3> &points, const float &w) const
 {
     std::array<Vec4f, 3> out;
-    // std::transform(std::begin(v), std::end(v), std::begin(out), [](const Vec3f &v) {
-    //     return Vec4f(v.x, v.y, v.z, 1.0f);
-    // });
+    // std::transform(std::begin(vertex), std::end(vertex), std::begin(out), [](const Vec3f &v)
+    //                { return vertex[i].toVector4(w); });
     for (int i = 0; i < 3; i++) {
-        out[i] = Vec4f(vertex[i].x, vertex[i].y, vertex[i].z, 1.0f);
+        out[i] = points[i].toVector4(w);
     }
     return out;
 }

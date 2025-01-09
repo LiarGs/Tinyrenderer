@@ -1,57 +1,7 @@
-﻿#include "tgaimage.h"
+﻿#include "rasterizer.h"
 #include "model.h"
 
-void line(int x0, int y0, int x1, int y1, Image* image, const Color& color)
-{
-    if (!image) // 图像为空，直接返回
-    {
-        return;
-    }
-
-    if (x0 == x1 && y0 == y1) // 线段起点和终点重合，直接绘制一个点
-    {
-        image->set(x0, y0, color);
-        return;
-    }
-
-    // Breseham 算法绘制线段
-    bool steep = false; // 标记当前斜率的绝对值是否大于1
-    if (std::abs(x0 - x1) < std::abs(y0 - y1))
-    {
-        // 斜率绝对值>1了，此时将线段端点各自的x,y坐标对调。
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-        steep = true;
-    }
-    if (x0 > x1)
-    { // x0>x1时，对线段端点坐标进行对调
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int derror2 = std::abs(dy) * 2;
-    int error2 = 0;
-    int y = y0;
-    for (int x = x0; x <= x1; x++)
-    {
-        if (steep)
-        {
-            // 如果线段是斜率大于1的，那么线段上的点原本坐标应该是(y,x)
-            image->set(y, x, color);
-        }
-        else
-        {
-            image->set(x, y, color);
-        }
-        error2 += derror2;
-        if (error2 > dx)
-        {
-            y += (y1 > y0 ? 1 : -1);
-            error2 -= dx * 2;
-        }
-    }
-}
+const auto Red = Color(255.f, 0.f, 0.f);
 
 int main(int argc, char **argv)
 {
@@ -67,7 +17,8 @@ int main(int argc, char **argv)
     {
         model = new Model("../../../obj/african_head/african_head.obj");
     }
-    auto image = std::make_unique<TGAImage>(width, height, Image::RGBA);
+    // 获取 rasterizer 实例
+    auto &ras = rst::rasterizer::get_instance(width, height);
 
     // auto image = std::make_unique<PNGImage>(width, height, Image::RGBA); // 这里实现多态
 
@@ -80,18 +31,19 @@ int main(int argc, char **argv)
             Vec3f v0 = model->vert(face[j]);
             Vec3f v1 = model->vert(face[(j + 1) % 3]);
             // 坐标变换，将模型坐标系中的坐标转换到屏幕坐标系中
-            int x0 = static_cast<int>((v0.x + 1.) * width / 2.f);
-            int y0 = static_cast<int>((v0.y + 1.) * height / 2.f);
-            int x1 = static_cast<int>((v1.x + 1.) * width / 2.f);
-            int y1 = static_cast<int>((v1.y + 1.) * height / 2.f);
-            line(x0, y0, x1, y1, image.get(), RED);
+            auto x0 = (v0.x + 1.f) * width / 2.f;
+            auto y0 = ((v0.y + 1.f) * height / 2.f);
+            auto x1 = ((v1.x + 1.f) * width / 2.f);
+            auto y1 = ((v1.y + 1.f) * height / 2.f);
+            ras.draw_line({x0, y0, 1.f}, {x1, y1, 1.f}, Red);
+            // line(x0, y0, x1, y1, image.get(), RED);
             // LOGI("line: (%d, %d) -> (%d, %d)", x0, y0, x1, y1);
         }
     }
 
     // image->flip_vertically();
     std::string filename = "output";
-    image->write_file(filename);
+    ras.image->write_file(filename);
     delete model;
     return 0;
 }

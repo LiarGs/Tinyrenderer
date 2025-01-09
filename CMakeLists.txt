@@ -14,13 +14,21 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+
+include_directories()
+
 include_directories(Base
                     Base/Test
                     Base/AntiAliasing
+                    Base/Rst
+                    Base/Texture
+                    Base/Shader
                     # 添加其他子目录
 )
 # 递归查找Base目录及其子目录下的所有头文件和cpp文件
 file(GLOB_RECURSE SOURCES "Base/*.h" "Base/*.cpp")
+
+find_package(OpenCV REQUIRED)
 
 add_subdirectory(Assignment1)
 add_subdirectory(Assignment2)
