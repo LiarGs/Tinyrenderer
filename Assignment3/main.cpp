@@ -1,49 +1,89 @@
-﻿#include "model.h"
+﻿#include "OBJ_Loader.h"
 #include "rasterizer.h"
 
 int main(int argc, char **argv)
 {
-    Model *model = nullptr;
+    objl::Loader model;
     if (2 == argc)
     {
-        model = new Model(argv[1]);
+        model.Load(argv[1]);
     }
     else
     {
-        model = new Model("../../../obj/african_head/african_head.obj");
+        model.Load("../../../obj/african_head/african_head.obj");
     }
-    auto width = 800;
-    auto height = 800;
+
+    int width = 800;
+    int height = 800;
+
+    std::vector<Triangle *> TriangleList; // 要渲染的三角形
+    // Load .obj File
+    for (const auto &mesh : model.LoadedMeshes)
+    {
+        for (int i = 0; i < mesh.Vertices.size(); i += 3)
+        { 
+            Triangle *t = new Triangle();
+            for (int j = 0; j < 3; j++)
+            {
+                t->setVertex(j, Vec3f{mesh.Vertices[i + j].Position.x, mesh.Vertices[i + j].Position.y, mesh.Vertices[i + j].Position.z});
+                t->setNormal(j, Vec3f{mesh.Vertices[i + j].Normal.x, mesh.Vertices[i + j].Normal.y, mesh.Vertices[i + j].Normal.z});
+                t->setTexCoord(j, Vec2f{mesh.Vertices[i + j].TextureCoordinate.x, mesh.Vertices[i + j].TextureCoordinate.y});
+            }
+            TriangleList.push_back(t);
+        }
+    }
     // 获取 rasterizer 实例
     auto &ras = rst::rasterizer::get_instance(width, height, ".png");
 
-    Vec3f light_dir{0, 0, -1}; // define light_dir
+    auto texture_path = "../../../obj/Texture/african_head_diffuse.jpg";
+    ras.set_texture(Texture(texture_path));
 
-    for (int i = 0; i < model->nfaces(); i++)
+    // rst::FragmentShader active_shader = phong_fragment_shader;
+
+    rst::FragmentShader active_shader = texture_fragment_shader;
+
+    // ras.set_vertex_shader(vertex_shader);
+    ras.set_fragment_shader(active_shader);
+
+    ras.clearBuff(rst::Buffers::Color | rst::Buffers::Depth);
+
+    Vec3f light_dir{0, 0, -1}; // define light_dir
+    fragment_shader_payload payload;
+    payload.texture = new Texture(texture_path);
+
+    for (auto &triangle : TriangleList)
     {
-        std::vector<int> face = model->face(i);
-        Vec2i screen_coords[3]; // 三角形三个顶点的屏幕坐标
-        Vec3f world_coords[3]; // 新加入一个数组用于存放三个顶点的世界坐标
-        Triangle screen_triangle;
+        // 用世界坐标计算法向量
+        Vec3f n = (triangle->vertex[2] - triangle->vertex[0]) ^ (triangle->vertex[1] - triangle->vertex[0]);
+        n.normalize();
+        float intensity = n * light_dir;    // 光照强度=法向量*光照方向
+        if (intensity < 0) continue;
+        
+        auto colorColor = Vec3f{rand() % 255, rand() % 255, rand() % 255};
+        auto lightColor = Vec3f{intensity * 255, intensity * 255, intensity * 255};
+
+        std::array<Vec2i, 3> screen_coords; // 三角形三个顶点的屏幕坐标
+        triangle->viewspace_pos = triangle->vertex;
         for (int j = 0; j < 3; j++)
         {
-            Vec3f v = model->vert(face[j]);
-            world_coords[j] = v;
+            Vec3f v = triangle->vertex[j];
             screen_coords[j] = Vec2i{(v.x + 1.) * width / 2., (v.y + 1.) * height / 2.};
-            screen_triangle.setVertex(j, Vec3f{static_cast<float>(screen_coords[j].x), static_cast<float>(screen_coords[j].y), v.z});
+            triangle->setVertex(j, Vec3f{static_cast<float>(screen_coords[j].x), static_cast<float>(screen_coords[j].y), v.z});
+            triangle->setColor(j, Vec3f{intensity * 255, intensity * 255, intensity * 255});
         }
-        // 用世界坐标计算法向量
-        Vec3f n = (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
-        n.normalize();
-        float intensity = n * light_dir; // 光照强度=法向量*光照方向
-        if (intensity > 0)
-        {
-            auto colorColor = Color(rand() % 255, rand() % 255, rand() % 255);
-            auto lightColor = Color(intensity * 255, intensity * 255, intensity * 255, 255);
-            ras.rasterize_triangle(screen_triangle, lightColor);
-        }
+        ras.rasterize_triangle(*triangle);
     }
 
+    // 将图像结果写入image
+    auto data = ras.image->frame_buf.data();
+    ras.image->cv_image = cv::Mat(height, width, CV_32FC3, reinterpret_cast<float *>(data));
+
+    ras.image->cv_image.convertTo(ras.image->cv_image, CV_8UC3, 255.0f);
+
+    cv::cvtColor(ras.image->cv_image, ras.image->cv_image, cv::COLOR_RGB2BGR);
+
+    ras.show();
+    cv::waitKey();
     std::string filename = "output";
     ras.image->write_file(filename);
     return 0;

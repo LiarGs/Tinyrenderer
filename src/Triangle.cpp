@@ -59,7 +59,11 @@ void Triangle::setNormal(int ind, const Vec3f& n) {
 }
 
 // Set i-th vertex color
-void Triangle::setColor(int ind, float r, float g, float b) {
+void Triangle::setColor(int ind, const Vec3f &c)
+{
+    auto r = c.x;
+    auto g = c.y;
+    auto b = c.z;
     if ((r < 0.0) || (r > 255.) ||
         (g < 0.0) || (g > 255.) ||
         (b < 0.0) || (b > 255.))
@@ -81,7 +85,6 @@ void Triangle::setTexCoord(int ind, const Vec2f &uv)
     }
 }
 
-
 // Get the bounding box of the triangle
 std::array<int, 4> Triangle::getBoundingBox() const
 {
@@ -100,19 +103,32 @@ std::array<int, 4> Triangle::getBoundingBox() const
 // Compute barycentric coordinates
 std::array<float, 3> Triangle::computeBarycentric2D(const Vec2f &p) const
 {
-
-    // Define a lambda for the common formula
+    // TODO->计算屏幕空间中的重心坐标
+    auto denominator = (vertex[0].x * (vertex[1].y - vertex[2].y) + (vertex[2].x - vertex[1].x) * vertex[0].y +
+                        vertex[1].x * vertex[2].y - vertex[2].x * vertex[1].y);
+    // 考虑点 p 刚好在三角形顶点处
+    if (denominator == 0) {
+        if (p == vertex[0].head<2>()) {
+            return {1.f, 0.f, 0.f};
+        }
+        if (p == vertex[0].head<2>())
+        {
+            return {0.f, 1.0f, 0.f};
+        }
+        if (p == vertex[0].head<2>())
+        {
+            return {0.f, 0.f, 1.f};
+        }
+    }
+    
     auto computeCoefficient = [&](int i, int j, int k) -> float
     {
-        auto denominator = (vertex[i].x * (vertex[j].y - vertex[k].y) + (vertex[k].x - vertex[j].x) * vertex[i].y +
-                            vertex[j].x * vertex[k].y - vertex[k].x * vertex[j].y);
         return (p.x * (vertex[j].y - vertex[k].y) + (vertex[k].x - vertex[j].x) * p.y +
-                vertex[j].x * vertex[k].y - vertex[k].x * vertex[j].y) / denominator;
+                    vertex[j].x * vertex[k].y - vertex[k].x * vertex[j].y);
     };
 
-    // Use the lambda function to compute the barycentric coordinates
-    float c1 = computeCoefficient(0, 1, 2);
-    float c2 = computeCoefficient(1, 2, 0);
+    float c1 = computeCoefficient(0, 1, 2) / denominator;
+    float c2 = computeCoefficient(1, 2, 0) / denominator;
     float c3 = 1-c1-c2; // c3 = computeCoefficient(2, 0, 1);
 
     return {c1, c2, c3};

@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <array>
+constexpr double MY_PI = 3.14159;
 
 template <class T, size_t N>
 class Vec;
@@ -13,12 +14,13 @@ class Matrix;
 using Vec2f = Vec<float, 2>;
 using Vec2i = Vec<int, 2>;
 using Vec3f = Vec<float, 3>;
+
 using Vec3i = Vec<int, 3>;
 using Vec4f = Vec<float, 4>;
 
 using Matrix4f = Matrix<float, 4, 4>;
 using Matrix4i = Matrix<int, 4, 4>;
-
+using Matrix3f = Matrix<float, 3, 3>;
 
 // 基础 Vec 类模板
 template <class T, size_t N>
@@ -28,8 +30,9 @@ public:
     union
     {
         T raw[N]; // 存储向量数据的数组
-        struct {
-            T x, y, z, w;
+        struct
+        {
+            T x, y, z;
         };
     };
 
@@ -62,6 +65,12 @@ public:
         }
     }
 
+    const T &w() const
+    {
+        static_assert(4 == N, "Vec has no w element.");
+        return raw[3];
+    }
+
     // 实现 head 方法
     template <size_t M>
     inline auto head() const
@@ -83,6 +92,16 @@ public:
         return result;
     }
 
+    // 重载 += 运算符
+    inline Vec<T, N> &operator+=(const Vec<T, N> &v)
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            raw[i] += v.raw[i];
+        }
+        return *this;
+    }
+
     // 向量减法
     inline Vec<T, N> operator-(const Vec<T, N> &v) const
     {
@@ -94,6 +113,15 @@ public:
         return result;
     }
 
+    inline Vec<T, N> &operator-=(const Vec<T, N> &v)
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            raw[i] -= v.raw[i];
+        }
+        return *this;
+    }
+
     // 标量乘法
     inline Vec<T, N> operator*(T f) const
     {
@@ -103,6 +131,15 @@ public:
             result.raw[i] = raw[i] * f;
         }
         return result;
+    }
+
+    inline Vec<T, N> &operator*=(T scalar)
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            raw[i] *= scalar;
+        }
+        return *this;
     }
 
     friend Vec<T, N> operator*(T f, const Vec<T, N> &v)
@@ -131,6 +168,20 @@ public:
         return result;
     }
 
+    inline Vec<T, N> &operator/=(T scalar)
+    {
+        if (scalar == 0)
+        {
+            throw std::runtime_error("Division by zero");
+        }
+        for (size_t i = 0; i < N; ++i)
+        {
+            raw[i] /= scalar;
+        }
+        return *this;
+    }
+
+
     friend Vec<T, N> operator/(T f, const Vec<T, N> &v)
     {
         Vec<T, N> result;
@@ -152,6 +203,17 @@ public:
         return result;
     }
 
+    // 逐元素乘法
+    Vec<T, N> cwiseProduct(const Vec<T, N> &v) const
+    {
+        Vec<T, N> result;
+        for (size_t i = 0; i < N; ++i)
+        {
+            result.raw[i] = raw[i] * v.raw[i];
+        }
+        return result;
+    }
+
     // 叉乘：仅适用于三维向量
     inline Vec<T, 3> operator^(const Vec<T, N> &v) const
     {
@@ -162,6 +224,15 @@ public:
         result.raw[1] = raw[2] * v.raw[0] - raw[0] * v.raw[2]; // y
         result.raw[2] = raw[0] * v.raw[1] - raw[1] * v.raw[0]; // z
         return result;
+    }
+
+    inline bool operator==(const Vec<T, N> &v) const
+    {
+        for (size_t i = 0; i < N; ++i)
+        {
+            if (raw[i] != v.raw[i]) return false;
+        }
+        return true;
     }
 
     inline Vec<T, 4> toVector4(T w) const
@@ -182,7 +253,7 @@ public:
         return std::sqrt(sum);
     }
 
-    // 归一化
+    // 归一化（原地修改）
     inline Vec<T, N> &normalize(T l = 1)
     {
         T n = norm();
@@ -238,6 +309,34 @@ public:
             for (int j = 0; j < N; ++j)
             {
                 m[i][j] = v; // 所有元素初始化为v
+            }
+        }
+    }
+    Matrix(const std::initializer_list<T> &values)
+    {
+        if (values.size() != M * N)
+        {
+            throw std::invalid_argument("Initializer list size does not match matrix size.");
+        }
+
+        auto it = values.begin(); // 获取迭代器
+        for (size_t i = 0; i < M; ++i)
+        {
+            for (size_t j = 0; j < N; ++j)
+            {
+                m[i][j] = *it; // 从 initializer_list 中提取值
+                ++it;          // 移动到下一个值
+            }
+        }
+    }
+    // 按列向量填充矩阵
+    Matrix(const std::array<Vec<T, M>, N> &vecs)
+    {
+        for (size_t j = 0; j < N; ++j)
+        {
+            for (size_t i = 0; i < M; ++i)
+            {
+                m[i][j] = vecs[j].raw[i]; // 将每个 Vec 的值填充到矩阵的对应列
             }
         }
     }
@@ -414,7 +513,6 @@ public:
     }
 
     // 重载输出运算符
-    template <class>
     friend std::ostream &operator<<(std::ostream &s, Matrix<T, M, N> &matrix)
     {
         for (int i = 0; i < M; ++i)

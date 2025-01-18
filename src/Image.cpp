@@ -31,45 +31,21 @@ bool Image::read_file(const std::string &filename, const std::string& image_form
         }
     }
 
-    format = "." + image_format;
+    format = image_format;
     return true;
 }
 
-bool Image::write_file(const std::string &filename, const bool vflip) const
+bool Image::write_file(const std::string &filename, const bool vflip)
 {
-    // 创建一维 float 数组
-    std::vector<float> data(frame_buf.size() * 3);
-    float *data_ptr = data.data();
-
-    // 使用指针增量操作填充数据
-    for (const auto &v : frame_buf)
+    // 检查 cv_image 是否为空
+    if (cv_image.empty())
     {
-        *data_ptr++ = v.x;
-        *data_ptr++ = v.y;
-        *data_ptr++ = v.z;
+        LOGE("Image data is empty. Cannot write to file: {}", filename);
+        return false;
     }
-    
-    // // 将frame_buf的数据转换为一维浮点数数组
-    // std::vector<float> data(frame_buf.size() * 3);
-    // for (size_t i = 0; i < frame_buf.size(); ++i)
-    // {
-    //     data[i * 3 + 0] = frame_buf[i].x; // R
-    //     data[i * 3 + 1] = frame_buf[i].y; // G
-    //     data[i * 3 + 2] = frame_buf[i].z; // B
-    // }
 
-    // 创建cv::Mat，类型为CV_32FC3
-    cv::Mat cv_image_out(h, w, CV_32FC3, data.data());
-
-    cv_image_out.convertTo(cv_image_out, CV_8UC3, 255.0f);
-
-    if (vflip)
-        cv::flip(cv_image_out, cv_image_out, 0);
-
-    cv::cvtColor(cv_image_out, cv_image_out, cv::COLOR_RGB2BGR);
-
-
-    return cv::imwrite(filename + format, cv_image_out);
+    if (vflip) cv::flip(cv_image, cv_image, 0);
+    return cv::imwrite(filename + format, cv_image);
 }
 
 void Image::set(const int &x, const int &y, const Color &color)
