@@ -49,7 +49,7 @@
 - **模型变换**  
   支持模型平移/旋转/缩放组合变换（`set_model`方法）
 
-![Orbit Camera Control](../demo/CameraOrbit.gif)
+![Orbit Camera Control](demo/CameraOrbit.gif)
 
 ### 🖌️ 多样化渲染
 - **多模式切换**  
@@ -57,7 +57,7 @@
 - **抗锯齿方案**  
   4x SSAA超级采样（注释部分可启用）
 
-![Rendering Mode Switch](../demo/Rendermodelchange.gif)
+![Rendering Mode Switch](demo/Rendermodelchange.gif)
 
 ## 🛠️ 交互控制
 
@@ -81,12 +81,12 @@
 ## 📸 效果展示
 | 着色器切换 | 模型展示 |
 |-----------|---------|
-|法线可视化| ![Normal result](../demo/normal.png) | 
-|Phong光照| ![Phone result](../demo/phone.png) |
-|纹理映射| ![Texture result](../demo/texture.png) | 
-|凹凸贴图| ![Bump result](../demo/bump.png) |
-|位移渲染| ![Displacement result](../demo/displacement.png) | 
-|白模渲染| ![White result](../demo/white.png) |
+|法线可视化| ![Normal result](demo/normal.png) | 
+|Phong光照| ![Phone result](demo/phone.png) |
+|纹理映射| ![Texture result](demo/texture.png) | 
+|凹凸贴图| ![Bump result](demo/bump.png) |
+|位移渲染| ![Displacement result](demo/displacement.png) | 
+|白模渲染| ![White result](demo/white.png) |
 
 
 ## 🌟 未来计划
