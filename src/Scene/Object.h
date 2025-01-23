@@ -9,8 +9,9 @@ enum MaterialType
     REFLECTION
 };
 
-struct Material
+class Material
 {
+public:
     // 基础属性
     Vec3f Ka;               // 环境光颜色（12 字节）
     Vec3f Kd;               // 漫反射颜色（12 字节）
@@ -26,7 +27,7 @@ struct Material
 
     // 纹理贴图
     std::string map_Ka;   // 环境光贴图
-    std::string map_Kd;   // 漫反射贴图
+    Texture map_Kd;       // 漫反射贴图
     std::string map_Ks;   // 镜面反射贴图
     std::string map_Ns;   // 镜面高光贴图
     std::string map_d;    // 透明度贴图

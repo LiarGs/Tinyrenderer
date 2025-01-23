@@ -92,3 +92,25 @@ bool objl::Loader::Load(const std::string &path)
     
     return true;
 }
+
+std::vector<Triangle> objl::LoadTriangleList(const Loader &model)
+{
+    std::vector<Triangle> TriangleList;
+    // Load .obj File
+    for (const auto &mesh : model.LoadedMeshes)
+    {
+        for (int i = 0; i < mesh.Vertices.size(); i += 3)
+        {
+            Triangle t;
+            for (int j = 0; j < 3; j++)
+            {
+                t.setVertex(j, Vec3f{mesh.Vertices[i + j].Position.x, mesh.Vertices[i + j].Position.y, mesh.Vertices[i + j].Position.z});
+                t.setNormal(j, Vec3f{mesh.Vertices[i + j].Normal.x, mesh.Vertices[i + j].Normal.y, mesh.Vertices[i + j].Normal.z});
+                t.setTexCoord(j, Vec2f{mesh.Vertices[i + j].TextureCoordinate.x, mesh.Vertices[i + j].TextureCoordinate.y});
+                t.setColor(j, {148, 121.0, 92.0});
+            }
+            TriangleList.emplace_back(t);
+        }
+    }
+    return TriangleList;
+}

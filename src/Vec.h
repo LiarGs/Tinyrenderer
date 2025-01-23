@@ -1,10 +1,7 @@
 ﻿#pragma once
-#include <cfloat>
-#include <cmath>
-#include <vector>
 #include <iostream>
-#include <array>
-constexpr double MY_PI = 3.14159;
+
+constexpr float MY_PI = 3.14159f;
 
 template <class T, size_t N>
 class Vec;

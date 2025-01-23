@@ -1,15 +1,5 @@
 ﻿#include "Image.h"
 
-void Image::flip_horizontally()
-{
-    // TODO
-}
-
-void Image::flip_vertically()
-{
-    //TODO
-}
-
 bool Image::read_file(const std::string &filename, const std::string& image_format)
 {
     cv_image = cv::imread(filename, cv::IMREAD_COLOR);
@@ -52,7 +42,6 @@ void Image::set(const int &x, const int &y, const Color &color)
 {
     if (x < 0 || x >= w || y < 0 || y >= h)
         return;
-
     frame_buf[get_index(x, y)] = color.getVec();
 }
 

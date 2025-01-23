@@ -19,15 +19,15 @@ namespace Materials
     }
 
     // 头部材质
-    Material HeadMaterial(const std::string &texturePath)
+    Material SkinMaterial(const std::string &texturePath)
     {
         Material material;
         material.name = DIFFUSE_AND_GLOSSY;
-        material.Ka = Vec3f{0.005f, 0.005f, 0.005f}; // 环境光
-        material.Kd = Vec3f{0.8f, 0.8f, 0.8f};          // 漫反射
-        material.Ks = Vec3f{0.2f, 0.2f, 0.2f};          // 镜面反射
-        material.specularExponent = 20.f;               // 高光指数
-        material.map_Kd = texturePath;                  // 漫反射贴图路径
+        material.Ka = Vec3f{0.01f, 0.01f, 0.01f}; // 环境光，稍微提高一点以增加皮肤的自然感
+        material.Kd = Vec3f{0.9f, 0.7f, 0.6f};    // 漫反射，调整为肉色
+        material.Ks = Vec3f{0.1f, 0.1f, 0.1f};    // 镜面反射，降低以模拟皮肤的粗糙表面
+        material.specularExponent = 10.f;         // 高光指数，降低以使高光区域更加柔和
+        material.map_Kd = Texture(texturePath);            // 漫反射贴图路径
         return material;
     }
 
@@ -39,7 +39,7 @@ namespace Materials
         material.Kd = Vec3f{0.8f, 0.8f, 0.8f};
         material.Ks = Vec3f{0.7937f, 0.7937f, 0.7937f};
         material.specularExponent = 150.f;
-        material.map_Kd = texturePath; // 漫反射贴图路径
+        material.map_Kd = Texture(texturePath); // 漫反射贴图路径
         return material;
     }
 

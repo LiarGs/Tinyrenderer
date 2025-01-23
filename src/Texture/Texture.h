@@ -8,6 +8,7 @@ private:
     cv::Mat image_data;
 
 public:
+    Texture() = default;
     Texture(const std::string& name)
     {
         image_data = cv::imread(name);

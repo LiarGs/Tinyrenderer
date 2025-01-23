@@ -22,8 +22,7 @@ include_directories(src
 file(GLOB_RECURSE SOURCES "src/*.h" "src/*.cpp")
 
 find_package(OpenCV REQUIRED)
+set(TBB_DIR "F:/C++_Library/oneapi-tbb-2022.0.0/lib/cmake/tbb")  # 设置 TBB 的根目录
+find_package(TBB REQUIRED)
 
-add_subdirectory(Assignment1)
-add_subdirectory(Assignment2)
-add_subdirectory(Assignment3)
-add_subdirectory(Assignment4)
+add_subdirectory(src)

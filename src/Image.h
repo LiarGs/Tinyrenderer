@@ -62,9 +62,6 @@ public:
     bool read_file(const std::string& filename, const std::string &image_format);
     bool write_file(const std::string &filename, const bool vflip = false);
 
-    void flip_horizontally();
-    void flip_vertically();
-
     auto width() const { return w; }
     auto height() const { return h; }
 

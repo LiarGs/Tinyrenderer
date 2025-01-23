@@ -7,6 +7,38 @@ Vec3f normal_fragment_shader(const fragment_shader_payload &payload)
     return result_color * 255;
 }
 
+Vec3f white_fragment_shader(const fragment_shader_payload &payload)
+{
+    // 白色基础颜色
+    Vec3f white_color = Vec3f{255.f, 255.f, 255.f};
+
+    // 获取法线和光照信息
+    const Vec3f &normal = payload.normal; // 确保法线是单位向量
+    Vec3f result_color = {0.f, 0.f, 0.f};
+
+    // 遍历所有光源
+    for (const auto &light : payload.lights)
+    {
+        // 计算光照方向
+        Vec3f light_dir = (light.position - payload.view_pos).normalize();
+
+        // 计算漫反射强度
+        float diffuse = std::max(0.0f, normal * light_dir);
+
+        // 计算光照衰减（假设光源强度随距离平方衰减）
+        float r_squared = (light.position - payload.view_pos).norm() * (light.position - payload.view_pos).norm();
+        Vec3f light_intensity = light.intensity / r_squared;
+
+        // 叠加光照效果
+        result_color += white_color.cwiseProduct(light_intensity) * diffuse;
+    }
+
+    // 添加环境光
+    result_color += payload.amb_light_intensity.cwiseProduct(white_color);
+
+    return result_color;
+}
+
 Vec3f phong_fragment_shader(const fragment_shader_payload &payload)
 {
     Vec3f ka = payload.material.Ka;
@@ -55,7 +87,6 @@ Vec3f phong_fragment_shader(const fragment_shader_payload &payload)
 
 Vec3f texture_fragment_shader(const fragment_shader_payload &payload)
 {
-
     Vec3f texture_color = payload.texture ? payload.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
     // 材质属性
@@ -107,7 +138,6 @@ Vec3f texture_fragment_shader(const fragment_shader_payload &payload)
 
 Vec3f bump_fragment_shader(const fragment_shader_payload &payload)
 {
-
     Vec3f normal = payload.normal;
 
     float kh = 0.2f, kn = 0.1f; // kh 和 kn 是控制凹凸效果的参数
@@ -160,7 +190,7 @@ Vec3f displacement_fragment_shader(const fragment_shader_payload &payload)
     Vec3f texture_color = payload.texture ? payload.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
     Vec3f ka = payload.material.Ka;
-    Vec3f kd = payload.color;
+    Vec3f kd = texture_color / 255;
     Vec3f ks = payload.material.Ks;
 
     // 光源和相机属性
@@ -246,4 +276,29 @@ Vec3f displacement_fragment_shader(const fragment_shader_payload &payload)
     }
 
     return result_color * 255;
+}
+
+void vertex_shader(vertex_shader_payload &payload) {
+    auto t = payload.triangle;
+
+    auto t_Vec4 = t->toVector4(t->vertex, 1.f);
+
+    t->viewspace_pos = {
+        (payload.view * payload.model * t_Vec4[0]).head<3>(),
+        (payload.view * payload.model * t_Vec4[1]).head<3>(),
+        (payload.view * payload.model * t_Vec4[2]).head<3>()};
+
+    t->normal = {
+        (payload.inv_trans * t->normal[0].toVector4(0.0f)).head<3>(),
+        (payload.inv_trans * t->normal[1].toVector4(0.0f)).head<3>(),
+        (payload.inv_trans * t->normal[2].toVector4(0.0f)).head<3>()};
+
+    for (int i = 0; i < 3; ++i)
+    {
+        // 将顶点从模型空间转换到裁剪空间
+        Vec4f v = payload.mvp * t_Vec4[i];
+        v /= v.w();
+
+        t->setVertex(i, v.head<3>());
+    }
 }

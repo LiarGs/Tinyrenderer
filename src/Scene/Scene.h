@@ -1,7 +1,4 @@
 ﻿#pragma once
-
-#include <vector>
-#include <memory>
 #include "Object.h"
 
 class Light
@@ -16,9 +13,29 @@ public:
 
 struct Camera
 {
-    Vec3f eye_pos;
-    Vec3f target_pos;
-    Vec3f up_dir;
+    Vec3f eye_pos;    // 相机位置
+    Vec3f target_pos; // 目标位置（相机看向的点）
+    Vec3f up_dir;     // 相机的上方向
+
+    // 相机的局部坐标系
+    Vec3f Z; // 前向向量（看向 -Z 轴）
+    Vec3f X; // 右向向量
+    Vec3f Y; // 上向向量
+
+    // 构造函数
+    Camera(const Vec3f &eye = {0.f, 0.f, 0.f}, const Vec3f &target = {0.f, 0.f, -1.f}, const Vec3f &up = {0.f, 1.f, 0.f})
+        : eye_pos(eye), target_pos(target), up_dir(up)
+    {
+        update(); // 初始化时更新局部坐标系
+    }
+
+    // 更新相机的局部坐标系
+    void update()
+    {
+        Z = (eye_pos - target_pos).normalize(); // 前向向量（看向 -Z 轴）
+        X = (up_dir ^ Z).normalize();           // 右向向量
+        Y = (Z ^ X).normalize();                // 上向向量
+    }
 };
 
 class Scene
@@ -43,7 +60,7 @@ public:
 
     void add(std::unique_ptr<Object> object) { objects.push_back(std::move(object)); }
     void add(std::unique_ptr<Light> light) { lights.push_back(std::move(light)); }
-    void set_camera(std::unique_ptr<Camera> _camera) { camera = std::move(_camera); }
+    void set_camera(std::shared_ptr<Camera> _camera) { camera = std::move(_camera); }
 
     void set_amb_light_intensity(const Vec3f &light) { amb_light_intensity = light; }
 
@@ -51,7 +68,7 @@ public:
     // 如果一个函数被标记为 [[nodiscard]]，而调用者没有使用它的返回值，编译器将产生一个警告。
     [[nodiscard]] const std::vector<std::unique_ptr<Object>> &get_objects() const { return objects; }
     [[nodiscard]] const std::vector<std::unique_ptr<Light>> &get_lights() const { return lights; }
-    [[nodiscard]] const std::unique_ptr<Camera> &get_camera() const { return camera; }
+    [[nodiscard]] const std::shared_ptr<Camera> &get_camera() const { return camera; }
 
     float get_filedofView() const { return filedofView; }
     float get_aspect_ratio() const { return aspect_ratio; }
@@ -66,5 +83,5 @@ private:
     // creating the scene (adding objects and lights)
     std::vector<std::unique_ptr<Object>> objects;
     std::vector<std::unique_ptr<Light>> lights;
-    std::unique_ptr<Camera> camera;
+    std::shared_ptr<Camera> camera;
 };

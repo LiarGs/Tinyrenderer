@@ -2,6 +2,16 @@
 #include "Texture.h"
 #include "Scene.h"
 
+struct vertex_shader_payload
+{
+    Triangle* triangle;
+    Matrix4f model;
+    Matrix4f view;
+    Matrix4f projection;
+    Matrix4f mvp;
+    Matrix4f inv_trans;
+};
+
 struct fragment_shader_payload
 {
     Vec3f view_pos; 
@@ -23,13 +33,12 @@ struct fragment_shader_payload
         : color(col), normal(nor), tex_coords(tc), texture(tex) {}
 };
 
-struct vertex_shader_payload
-{
-    Vec3f position;
-};
-
 Vec3f normal_fragment_shader(const fragment_shader_payload &payload);
+Vec3f white_fragment_shader(const fragment_shader_payload &payload);
 Vec3f phong_fragment_shader(const fragment_shader_payload &payload);
 Vec3f texture_fragment_shader(const fragment_shader_payload &payload);
 Vec3f bump_fragment_shader(const fragment_shader_payload &payload);
 Vec3f displacement_fragment_shader(const fragment_shader_payload &payload);
+
+
+void vertex_shader(vertex_shader_payload &payload);

@@ -1,11 +1,10 @@
 ﻿#pragma once
 #include <iostream>
-#include <string>
 #include <fstream>
 #include <sstream>
-#include <vector>
 #include "Log.h"
 #include "Vec.h"
+#include "Triangle.h"
 
 namespace objl {
     // Structure: Vertex
@@ -92,8 +91,8 @@ namespace objl {
 
         ~Loader() = default;
 
-        int nverts() { return _Vertices.size(); }; // 顶点数量
-        int nfaces() { return LoadedMeshes.size(); }; // 面数量
+        size_t nverts() { return _Vertices.size(); }; // 顶点数量
+        size_t nfaces() { return LoadedMeshes.size(); }; // 面数量
 
         // Loaded Mesh Objects
         std::vector<Mesh> LoadedMeshes;
@@ -103,4 +102,6 @@ namespace objl {
         // Loaded Material Objects
         // std::vector<Material> LoadedMaterials;
     };
+
+    std::vector<Triangle> LoadTriangleList(const Loader &loader);
 }
