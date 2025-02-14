@@ -1,6 +1,6 @@
-project(Assignment4)
+project(TinyRendered)
 # 选择 Visual Studio 生成器
-set(CMAKE_GENERATOR "Visual Studio 16 2022")  # 根据你的版本调整
+set(CMAKE_GENERATOR "Visual Studio 16 2022")
 
 # 这行使用file(GLOB ...)命令查找当前目录下所有的.h和.cpp文件，并将它们列表赋值给变量SOURCES。
 file(GLOB ADDITIONAL_SOURCES "*.h" "*.cpp")

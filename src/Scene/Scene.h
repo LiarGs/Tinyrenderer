@@ -41,7 +41,7 @@ struct Camera
 class Scene
 {
 public:
-    // 获取单例实例，返回 unique_ptr
+    // 获取单例实例
     static Scene &get_instance(size_t w, size_t h, float fov = 45)
     {
         static Scene instance(w, h, fov);

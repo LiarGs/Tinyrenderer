@@ -1,10 +1,15 @@
 ﻿#include <algorithm>
+#include <barrier>
 #include "rasterizer.h"
 
 rst::rasterizer::rasterizer(int w, int h, const std::string &format) : width(w), height(h)
 {
     image = std::make_unique<Image>(w, h, format);
     depth_buf.resize(w * h, -std::numeric_limits<float>::infinity()); // 初始化为负无穷大
+    back_buf.resize(w * h, 0);
+
+    super_depth_buf.resize(w * h * samples * samples, -std::numeric_limits<float>::infinity());
+    super_back_buf.resize(w * h * samples * samples, 0);
 }
 
 void rst::rasterizer::set_model(const Vec3f &translate, const Vec3f &rotate, const Vec3f &scale)
@@ -121,7 +126,7 @@ void rst::rasterizer::set_pixel(const Vec2i &point, const Vec3f &color)
     if (x < 0 || x >= width || y < 0 || y >= height)
         return;
 
-    image->frame_buf[get_index(x, y)] = color;
+    back_buf[get_index(x, y)] = color;
 }
 
 void rst::rasterizer::clearBuff(rst::Buffers buff)
@@ -129,22 +134,27 @@ void rst::rasterizer::clearBuff(rst::Buffers buff)
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
         std::fill(image->frame_buf.begin(), image->frame_buf.end(), Vec3f{0, 0, 0});
+        std::fill(back_buf.begin(), back_buf.end(), Vec3f{0, 0, 0});
+        std::fill(super_back_buf.begin(), super_back_buf.end(), Vec3f{0, 0, 0});
         triangleCount = 0;
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), -std::numeric_limits<float>::infinity());
+        std::fill(super_depth_buf.begin(), super_depth_buf.end(), -std::numeric_limits<float>::infinity());
     }
 }
 
 void rst::rasterizer::show() const
 {
     // 检查 cv_image 是否为空
-    if (image->cv_image.empty())
+    if (image->frame_buf.empty())
     {
         LOGE("Image data is empty. Cannot display.");
         return;
     }
+
+
     // 创建窗口标题，显示三角形面数
     std::string windowTitle = "Render Window - Triangles: " + std::to_string(triangleCount);
 
@@ -153,7 +163,6 @@ void rst::rasterizer::show() const
 
     cv::imshow("Render Window", image->cv_image);
 }
-
 
 void rst::rasterizer::draw_point_triangle(Triangle &t)
 {
@@ -192,7 +201,10 @@ void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Colo
         int err = dy * 2 - dx;
         for (; x != x_end; x += sx)
         {
-            image->set(x, y, color);
+            {
+                std::lock_guard<std::mutex> lock_image(image_mutex); // image_mutex是保护帧缓冲区的互斥锁
+                set_pixel({x, y}, color.getVec());
+            }
             if (err > 0)
             {
                 y += sy;
@@ -200,14 +212,20 @@ void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Colo
             }
             err += dy * 2;
         }
-        image->set(x, y, color);
+        {
+            std::lock_guard<std::mutex> lock_image(image_mutex); // image_mutex是保护帧缓冲区的互斥锁
+            set_pixel({x, y}, color.getVec());
+        }
     }
     else
     {
         int err = dx * 2 - dy;
         for (; y != y_end; y += sy)
         {
-            image->set(x, y, color);
+            {
+                std::lock_guard<std::mutex> lock_image(image_mutex); // image_mutex是保护帧缓冲区的互斥锁
+                set_pixel({x, y}, color.getVec());
+            }
             if (err > 0)
             {
                 x += sx;
@@ -215,7 +233,10 @@ void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Colo
             }
             err += dx * 2;
         }
-        image->set(x, y, color);
+        {
+            std::lock_guard<std::mutex> lock_image(image_mutex); // image_mutex是保护帧缓冲区的互斥锁
+            set_pixel({x, y}, color.getVec());
+        }
     }
 }
 
@@ -240,7 +261,8 @@ void rst::rasterizer::draw_triangle_line(Triangle &t) {
 void rst::rasterizer::rasterize_triangle(Triangle &t)
 {
     vertex_payload.triangle = &t;
-    vertex_shader(vertex_payload);
+    vertex_shader(vertex_payload); // 顶点着色器
+    
     for (int i = 0; i < 3; ++i)
     {
         // 将裁剪空间坐标转换到标准化设备坐标（NDC）
@@ -259,80 +281,87 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
     auto interpolate = [](float alpha, float beta, float gamma, const auto &array)
     { return (alpha * array[0] + beta * array[1] + gamma * array[2]); }; // 对三角形各项属性做插值
 
-    for (int x = min_x; x < max_x; ++x)
+    auto pixel_render = [&](float x, float y, int ind) -> Vec3f
     {
-        for (int y = min_y; y < max_y; ++y)
+        if (!t.insideTriangle(Vec3f{x, y, 1.0f}))
+        {
+            return {0.f, 0.f, 0.f};
+        }
+        auto [alpha, beta, gamma] = t.computeBarycentric2D(Vec2f{static_cast<float>(x), static_cast<float>(y)}); // 计算像素点的重心坐标
+        float z_corrected = 1.0f / (alpha / view_pos[0].z + beta / view_pos[1].z + gamma / view_pos[2].z);
+
+        // 对重心坐标做透视校正
+        float a_corrected = alpha / view_pos[0].z * z_corrected;
+        float b_corrected = beta / view_pos[1].z * z_corrected;
+        float g_corrected = gamma / view_pos[2].z * z_corrected;
+
+        float z_interpolated = z_corrected;
+
+        if (!anti_Aliasing)
+        {
+            std::lock_guard<std::mutex> lock_image(depth_mutex); // 保护深度缓冲区
+            if (z_interpolated < depth_buf[ind])
+            {
+                return {0.f, 0.f, 0.f};
+            }
+            depth_buf[ind] = z_interpolated; // 更新z-buffer
+        }else {
+            std::lock_guard<std::mutex> lock_image(depth_mutex); // 保护深度缓冲区
+            if (z_interpolated < super_depth_buf[ind])
+            {
+                return {0.f, 0.f, 0.f};
+            }
+            super_depth_buf[ind] = z_interpolated; // 更新z-buffer
+        }
+
+
+        fragment_payload.color = interpolate(a_corrected, b_corrected, g_corrected, t.color);
+        fragment_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.normal).normalize(); // 确保法线是单位向量
+        fragment_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.tex_coords);
+        fragment_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
+
+        return fragment_shader(fragment_payload);
+    };
+
+    for (int y = min_y; y < max_y; ++y)
+    {
+        for (int x = min_x; x < max_x; ++x)
         {
             if (x < 0 || x >= width || y < 0 || y >= height)
                 continue;
-            if (!t.insideTriangle(Vec3f{static_cast<float>(x), static_cast<float>(y), 1.0f}))
-            {
-                continue;
+            Vec3f pixel_color{0.f, 0.f, 0.f};
+            if (!anti_Aliasing) {
+                // NO Anti-Aliasing
+                pixel_color = pixel_render(x + 0.5f, y + 0.5f, get_index(x, y));
+                if (pixel_color.x == 0.f)
+                    continue;
+
+            }else {
+                // 在这里实现抗锯齿
+                samples = 2; // 2x2 mutil-sampling
+                auto ind = get_index(x, y) * samples * samples;
+  
+                for (int i = 0; i < samples; ++i)
+                {
+                    for (int j = 0; j < samples; ++j)
+                    {
+                        int index = ind + i * samples + j;
+                        float sub_x = x + (i + 0.5f) / samples;
+                        float sub_y = y + (j + 0.5f) / samples;
+                        auto sub_pixel_color = pixel_render(sub_x, sub_y, index);
+                        if (sub_pixel_color.x == 0.f) {
+                            continue;
+                        }
+                        super_back_buf[index] = sub_pixel_color;
+                    }
+                }
+                pixel_color = (super_back_buf[ind] + super_back_buf[ind + 1] + super_back_buf[ind + 2] + super_back_buf[ind + 3]) / 4;
             }
-            auto [alpha, beta, gamma] = t.computeBarycentric2D(Vec2f{static_cast<float>(x), static_cast<float>(y)}); // 计算像素点的重心坐标
-            float z_corrected = 1.0f / (alpha / view_pos[0].z + beta / view_pos[1].z + gamma / view_pos[2].z);       // view_pos[i].z is the vertex view space depth value z.
-            // 对重心坐标做透视校正
-            float a_corrected = alpha / view_pos[0].z * z_corrected;
-            float b_corrected = beta / view_pos[1].z * z_corrected;
-            float g_corrected = gamma / view_pos[2].z * z_corrected;
-
-            float z_interpolated = z_corrected;
-            auto ind = get_index(x, y);
-
-            // NO Anti-Aliasing
-            if (z_interpolated < depth_buf[ind])
+            
             {
-                continue;
+                std::lock_guard<std::mutex> lock_image(image_mutex); // 保护帧缓冲区
+                set_pixel({x, y}, pixel_color / 255.f);
             }
-
-            depth_buf[ind] = z_interpolated; // 更新z-buffer
-
-            fragment_payload.color = interpolate(a_corrected, b_corrected, g_corrected, t.color);
-            fragment_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.normal).normalize(); // 确保法线是单位向量
-            fragment_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.tex_coords);
-            fragment_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
-
-            auto pixel_color = fragment_shader(fragment_payload);
-            image->set(x, y, Color(pixel_color));
-
-            // end of NO Anti-Aliasing
-
-            // Super-sampling for anti-aliasing
-            // auto ssaa = [](const Triangle &t, int x, int y, int samples) -> float
-            // {
-            //     float coverage = 0.0f;
-            //     for (int i = 0; i < samples; ++i)
-            //     {
-            //         for (int j = 0; j < samples; ++j)
-            //         {
-            //             float sub_x = x + (i + 0.5f) / samples;
-            //             float sub_y = y + (j + 0.5f) / samples;
-            //             if (t.insideTriangle(Vec3f{sub_x, sub_y, 1.0f}))
-            //             {
-            //                 coverage += 1.0f / (samples * samples);
-            //             }
-            //         }
-            //     }
-            //     return coverage;
-            // };
-
-            // const int samples = 4; // 2x2 super-sampling
-            // float coverage = ssaa(t, x, y, samples);
-            // // Set the pixel color based on coverage
-            // if (coverage >= 0.0f && z_interpolated > depth_buf[ind])
-            // {
-            //     depth_buf[ind] = z_interpolated; // 更新z-buffer
-
-            //     fragment_payload.color = interpolate(a_corrected, b_corrected, g_corrected, t.color);
-            //     fragment_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.normal).normalize(); // 确保法线是单位向量
-            //     fragment_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.tex_coords);
-            //     fragment_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
-
-            //     auto pixel_color = fragment_shader(fragment_payload);
-            //     image->set(x, y, Color(pixel_color));
-            // }
-
-            // end of Super-sampling for anti-aliasing
         }
     }
     ++triangleCount;
@@ -340,24 +369,67 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
 
 void rst::rasterizer::rasterize_triangle_list(const std::vector<Triangle> &triangles) {
 
-    // tbb::parallel_for(tbb::blocked_range<size_t>(0, triangles.size()),
-    //                   [&](const tbb::blocked_range<size_t> &range)
-    //                   {
-    //                       for (size_t i = range.begin(); i < range.end(); ++i)
-    //                       {
-    //                         auto t = triangles[i];
-    //                         rasterize_triangle(t);
-    //                       }
-    //                   });
-    for (auto t : triangles)
+    if (!multithreading)
     {
-        if (renderMode == FACE)
-            rasterize_triangle(t);
-        else if (renderMode == EDGE)
-            draw_triangle_line(t);
-        else if (renderMode == VERTEX)
-            draw_point_triangle(t);
+        for (auto t : triangles)
+        {
+            if (renderMode == FACE)
+                rasterize_triangle(t);
+            else if (renderMode == EDGE)
+                draw_triangle_line(t);
+            else if (renderMode == VERTEX)
+                draw_point_triangle(t);
+        }
     }
+    else
+    {
+        // 尝试多线程渲染
+        std::queue<Triangle> taskQueue;
+        // 将带渲染三角形添加到队列
+        for (const auto &t : triangles)
+        {
+            taskQueue.push(t);
+        }
+
+        // 工作线程函数
+        auto worker = [&]()
+        {
+            while (true)
+            {
+                Triangle t;
+                {
+                    std::lock_guard<std::mutex> lock(queueMutex);
+                    if (taskQueue.empty())
+                        break;
+                    t = taskQueue.front();
+                    taskQueue.pop();
+                }
+                if (renderMode == FACE)
+                    rasterize_triangle(t);
+                else if (renderMode == EDGE)
+                    draw_triangle_line(t);
+                else if (renderMode == VERTEX)
+                    draw_point_triangle(t);
+            }
+        };
+
+        // 启动线程
+        // const size_t num_threads = std::thread::hardware_concurrency();
+        const size_t num_threads = 8;
+        std::vector<std::thread> threads;
+        for (size_t i = 0; i < num_threads; ++i)
+        {
+            threads.emplace_back(worker);
+        }
+
+        // 等待线程结束
+        for (auto &thread : threads)
+        {
+            thread.join();
+        }
+    }
+
+    std::swap(back_buf, image->frame_buf);
 }
 
 void rst::rasterizer::draw_obj(const std::unique_ptr<Object> &obj)
@@ -401,6 +473,8 @@ void rst::rasterizer::draw()
 
     vertex_payload.mvp = vertex_payload.projection * vertex_payload.view * vertex_payload.model;
     vertex_payload.inv_trans = (vertex_payload.view * vertex_payload.model).inverse().transpose();
+
+    clearBuff(rst::Buffers::Color | rst::Buffers::Depth); // 清空缓冲区
     // 遍历场景中的所有物体
     for (const auto &obj : scene->get_objects())
     {
@@ -409,7 +483,6 @@ void rst::rasterizer::draw()
         fragment_payload.texture = texture.has_value() ? &texture.value() : nullptr;
         draw_obj(obj);
     }
-
 
     // 将图像结果写入image
     auto data = image->frame_buf.data();

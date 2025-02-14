@@ -141,12 +141,13 @@ public:
 
     friend Vec<T, N> operator*(T f, const Vec<T, N> &v)
     {
-        Vec<T, N> result;
-        for (size_t i = 0; i < N; ++i)
-        {
-            result.raw[i] = v.raw[i] * f;
-        }
-        return result;
+        return v * f;
+        // Vec<T, N> result;
+        // for (size_t i = 0; i < N; ++i)
+        // {
+        //     result.raw[i] = v.raw[i] * f;
+        // }
+        // return result;
     }
 
     // 标量除法
@@ -382,15 +383,16 @@ public:
 
     friend auto operator*(T scalar, const Matrix<T,M,N> &other)
     {
-        Matrix<T, M, N> result;
-        for (int i = 0; i < M; ++i)
-        {
-            for (int j = 0; j < N; ++j)
-            {
-                result.m[i][j] = scalar * m[i][j];
-            }
-        }
-        return result;
+        return other * scalar;
+        // Matrix<T, M, N> result;
+        // for (int i = 0; i < M; ++i)
+        // {
+        //     for (int j = 0; j < N; ++j)
+        //     {
+        //         result.m[i][j] = scalar * m[i][j];
+        //     }
+        // }
+        // return result;
     }
 
     // 重载标量除法操作符

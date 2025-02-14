@@ -142,7 +142,7 @@ Vec3f bump_fragment_shader(const fragment_shader_payload &payload)
 
     float kh = 0.2f, kn = 0.1f; // kh 和 kn 是控制凹凸效果的参数
 
-    // 定义一个 lambda 函数，用于从纹理中获取颜色并计算其亮度（norm）
+    // 用于从纹理中获取颜色并计算其亮度（norm）
     auto texture_intensity = [&payload](const float u, const float v)
     {
         return payload.texture->getColor(u, v).norm();
@@ -165,7 +165,7 @@ Vec3f bump_fragment_shader(const fragment_shader_payload &payload)
     float sqrt_xz = sqrt(x * x + z * z);
     auto tangent = Vec3f{x * y / sqrt_xz, sqrt_xz, z * y / sqrt_xz};
 
-    // 计算副切线向量 bitangent，通过法线和切线的叉积得到
+    // 计算副切线向量 bitangent
     auto bitangent = (normal ^ tangent).normalize();
 
     // 构建 TBN 矩阵，TBN 矩阵用于将局部坐标系中的向量转换到世界坐标系
@@ -181,7 +181,7 @@ Vec3f bump_fragment_shader(const fragment_shader_payload &payload)
     auto ln = Vec3f{-du, -dv, 1.f};
     normal = (TBN * ln).normalize();
 
-    // 返回扰动后的法线(法线贴图)
+    // 返回扰动后的法线向量
     return normal * 255;
 }
 

@@ -48,12 +48,6 @@ public:
 class Image
 {
 public:
-    // friend class rst::rasterizer;
-
-    // // 通道格式
-    // using GRAYSCALE = float;
-    // using RGB = Vec3f;
-    // using RGBA = Vec4f;
 
     Image() = default;
     Image(const int w, const int h, const std::string &format = ".png", const int bpp = 3) : w(w), h(h), format(format), bpp(bpp) { frame_buf.resize(w * h, Vec3f(0.0f)); }

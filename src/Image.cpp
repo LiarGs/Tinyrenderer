@@ -40,8 +40,10 @@ bool Image::write_file(const std::string &filename, const bool vflip)
 
 void Image::set(const int &x, const int &y, const Color &color)
 {
-    if (x < 0 || x >= w || y < 0 || y >= h)
+    if (x < 0 || x >= w || y < 0 || y >= h) {
         return;
+    }
+
     frame_buf[get_index(x, y)] = color.getVec();
 }
 

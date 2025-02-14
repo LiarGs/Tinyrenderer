@@ -81,7 +81,8 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "barrier": "cpp"
     },
     "C_Cpp.default.compilerPath": "cl.exe"
 }
