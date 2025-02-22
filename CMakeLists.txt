@@ -17,6 +17,7 @@ include_directories(src
                     src/Shader
                     src/Scene
                     src/ThreadPool
+                    src/ObjLoader
                     # 添加其他子目录
 )
 # 递归查找src目录及其子目录下的所有头文件和cpp文件

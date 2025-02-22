@@ -3,6 +3,14 @@
 #include "Vec.hpp"
 #include "Scene.hpp"
 
+enum Direction : int
+{
+    UP = 2490368,
+    DOWN = 2621440,
+    LEFT = 2424832,
+    RIGHT = 2555904
+};
+
 class OrbitCameraController
 {
 
@@ -17,8 +25,8 @@ private:
     float maxDistance = 50.f;    // 最大距离
 
 public:
-    Vec3f rotateVec{0.f, 0.f, 0.f}; // 旋转向量
-    OrbitCameraController(std::shared_ptr<Camera> _camera) : camera(_camera) {}
+    Vec3f rotateVec; // 旋转向量
+    OrbitCameraController(std::shared_ptr<Camera> _camera) : camera(_camera) { rotateVec = {0.f, 0.f, 0.f}; }
 
     // 旋转相机
     void rotate(float deltaX, float deltaY)
@@ -52,7 +60,6 @@ public:
         camera->eye_pos -= delta;
         camera->target_pos -= delta;
     }
-
 };
 
 // 鼠标回调函数
@@ -63,37 +70,38 @@ void mouse_callback(int event, int x, int y, int flags, void *userdata)
 
     OrbitCameraController *controller = static_cast<OrbitCameraController *>(userdata);
 
-    if (event == cv::EVENT_LBUTTONDOWN)
-    { // 左键按下
+    auto updatePrevPos = [&]()
+    {
         prevX = x;
         prevY = y;
-    }
-    else if (event == cv::EVENT_MOUSEMOVE && (flags & cv::EVENT_FLAG_LBUTTON))
-    { // 左键拖动
+    };
+
+    auto calculateDelta = [&]() -> std::pair<int, int>
+    {
         int deltaX = x - prevX;
         int deltaY = y - prevY;
-        prevX = x;
-        prevY = y;
+        updatePrevPos();
+        return {deltaX, deltaY};
+    };
 
-        controller->rotate(deltaX, deltaY);
+    if (event == cv::EVENT_LBUTTONDOWN || event == cv::EVENT_RBUTTONDOWN)
+    {
+        updatePrevPos();
     }
-    else if (event == cv::EVENT_RBUTTONDOWN)
-    { // 右键按下
-        prevX = x;
-        prevY = y;
-    }
-    else if (event == cv::EVENT_MOUSEMOVE && (flags & cv::EVENT_FLAG_RBUTTON))
-    { // 右键拖动
-        int deltaX = x - prevX;
-        int deltaY = y - prevY;
-        prevX = x;
-        prevY = y;
-
-        controller->pan(deltaX, deltaY);
+    else if (event == cv::EVENT_MOUSEMOVE)
+    {
+        auto [deltaX, deltaY] = calculateDelta();
+        if (flags & cv::EVENT_FLAG_LBUTTON)
+        {
+            controller->rotate(deltaX, deltaY);
+        }
+        else if (flags & cv::EVENT_FLAG_RBUTTON)
+        {
+            controller->pan(deltaX, deltaY);
+        }
     }
     else if (event == cv::EVENT_MOUSEWHEEL)
-    {                                              // 鼠标滚轮事件
-        int delta = cv::getMouseWheelDelta(flags); // 获取滚轮滚动量
-        controller->zoom(delta);
+    {
+        controller->zoom(cv::getMouseWheelDelta(flags));
     }
 }

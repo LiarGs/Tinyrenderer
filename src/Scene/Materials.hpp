@@ -5,7 +5,6 @@
 // 定义材质属性
 namespace Materials
 {
-
     // 默认材质
     Material DefaultMaterial()
     {
@@ -18,7 +17,7 @@ namespace Materials
         return material;
     }
 
-    // 头部材质
+    // 皮肤材质
     Material SkinMaterial(const std::string &texturePath)
     {
         Material material;
@@ -70,5 +69,3 @@ namespace Materials
     }
 
 } // namespace Materials
-
-

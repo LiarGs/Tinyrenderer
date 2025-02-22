@@ -2,9 +2,6 @@
 #include <opencv2/opencv.hpp>
 #include "Log.hpp"
 #include "Vec.hpp"
-namespace rst {
-    class rasterizer;
-}
 
 class Color
 {
@@ -54,7 +51,6 @@ public:
     auto width() const { return w; }
     auto height() const { return h; }
 
-    // auto &get_data() { return frame_buf; };
     int get_index(const int &x, const int &y) const { return (h - y - 1) * w + x; }
     const std::uint8_t &bytes_per_pixel() const { return bpp; };
     const std::string &get_format() const { return format; };

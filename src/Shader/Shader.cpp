@@ -9,11 +9,10 @@ Vec3f normal_fragment_shader(const rst::fragment_shader_payload &payload, rst::r
 
 Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
 {
-    // 白色基础颜色
     Vec3f white_color = Vec3f{255.f, 255.f, 255.f};
 
     // 获取法线和光照信息
-    const Vec3f &normal = payload.normal; // 确保法线是单位向量
+    const Vec3f &normal = payload.normal;
     Vec3f result_color = {0.f, 0.f, 0.f};
 
     // 遍历所有光源
@@ -23,7 +22,7 @@ Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
         Vec3f light_dir = (light->position - payload.view_pos).normalize();
 
         // 计算漫反射强度
-        float diffuse = std::max(0.0f, normal * light_dir);
+        float diffuse = std::max(0.f, normal * light_dir);
 
         // 计算光照衰减（假设光源强度随距离平方衰减）
         float r_squared = (light->position - payload.view_pos).norm() * (light->position - payload.view_pos).norm();
@@ -34,7 +33,7 @@ Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
     }
 
     // 添加环境光
-    result_color += payload.amb_light_intensity.cwiseProduct(white_color);
+    result_color += ras.material->Ka.cwiseProduct(payload.amb_light_intensity);
 
     return result_color;
 }
@@ -86,12 +85,12 @@ Vec3f phong_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
 
 Vec3f texture_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
 {
-    Vec3f texture_color = ras.texture ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
+    Vec3f texture_color = ras.texture.has_value() ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
     // 材质属性
-    Vec3f ka = ras.material->Ka;                // 环境光系数
-    Vec3f kd = texture_color / 255.f;            // 漫反射系数
-    Vec3f ks = ras.material->Ks;        // 镜面反射系数
+    Vec3f ka = ras.material->Ka;      // 环境光系数
+    Vec3f kd = texture_color / 255.f; // 漫反射系数
+    Vec3f ks = ras.material->Ks;      // 镜面反射系数
 
     // 相机属性
     Vec3f amb_light_intensity = payload.amb_light_intensity;      // 环境光强度
@@ -143,7 +142,7 @@ Vec3f bump_fragment_shader(const rst::fragment_shader_payload &payload, rst::ras
     // 用于从纹理中获取颜色并计算其亮度（norm）
     auto texture_intensity = [&payload, &ras](const float u, const float v)
     {
-        return ras.texture->getColor(u, v).norm();
+        return ras.texture.has_value() ? ras.texture->getColor(u, v).norm() : 1.f;
     };
 
     // 获取当前法线的 x, y, z 分量
@@ -185,7 +184,7 @@ Vec3f bump_fragment_shader(const rst::fragment_shader_payload &payload, rst::ras
 
 Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
 {
-    Vec3f texture_color = ras.texture ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
+    Vec3f texture_color = ras.texture.has_value() ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
     Vec3f ka = ras.material->Ka;
     Vec3f kd = texture_color / 255;
@@ -201,10 +200,9 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
 
     float kh = 0.2f, kn = 0.1f;
 
-    // TODO: Implement displacement mapping here
     auto texture_intensity = [&payload, &ras](const float u, const float v)
     {
-        return ras.texture->getColor(u, v).norm();
+        return ras.texture.has_value() ? ras.texture->getColor(u, v).norm() : 1.f;
     };
 
     // 获取当前法线的 x, y, z 分量
@@ -240,6 +238,7 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
     auto ln = Vec3f{-du, -dv, 1.f};
     normal = (TBN * ln).normalize();
 
+    // 移动顶点高度
     point += kn * normal * texture_intensity(u, v);
 
     Vec3f result_color = {0, 0, 0};
@@ -277,8 +276,6 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
 
 void vertex_shader(rst::vertex_shader_payload &payload, Triangle *t)
 {
-    // auto t = payload.triangle;
-
     auto t_Vec4 = t->toVector4(t->vertex, 1.f);
 
     t->viewspace_pos = {
@@ -293,7 +290,7 @@ void vertex_shader(rst::vertex_shader_payload &payload, Triangle *t)
 
     for (int i = 0; i < 3; ++i)
     {
-        // 将顶点从模型空间转换到裁剪空间
+        // 将顶点从模型空间转换到裁剪空间（NDC）
         Vec4f v = payload.mvp * t_Vec4[i];
         v /= v.w();
 

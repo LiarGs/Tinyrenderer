@@ -146,7 +146,7 @@ void rst::rasterizer::clearBuff(rst::Buffers buff)
     }
 }
 
-void rst::rasterizer::show(std::string fps_str, int &message_show_frame) const
+void rst::rasterizer::show(std::string fps_str) const
 {
     // 检查前置缓冲区是否为空
     if (image->frame_buf.empty())
@@ -166,28 +166,22 @@ void rst::rasterizer::show(std::string fps_str, int &message_show_frame) const
     // 在图像上显示FPS
     cv::putText(image->cv_image, fps_str, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
-    if (message_show_frame-- > 0)
+    if (multithreading)
     {
-        if (multithreading)
-        {
-            cv::putText(image->cv_image, "multithreading active", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
-        }
-        else
-        {
-            cv::putText(image->cv_image, "multithreading inactive", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
-        }
+        cv::putText(image->cv_image, "multithreading active", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
+    }
+    else
+    {
+        cv::putText(image->cv_image, "multithreading inactive", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
     }
 
-    if (message_show_frame-- > 0)
+    if (anti_Aliasing)
     {
-        if (anti_Aliasing)
-        {
-            cv::putText(image->cv_image, "SSAA anti_Aliasing active", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
-        }
-        else
-        {
-            cv::putText(image->cv_image, "NO anti_Aliasing", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
-        }
+        cv::putText(image->cv_image, "SSAA anti_Aliasing active", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
+    }
+    else
+    {
+        cv::putText(image->cv_image, "NO anti_Aliasing", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
     }
 
     // 创建窗口标题，显示三角形面数
@@ -204,7 +198,7 @@ void rst::rasterizer::draw_point_triangle(Triangle &t)
     vertex_shader(vertex_payload, &t);
     for (int i = 0; i < 3; ++i)
     {
-        // 将裁剪空间坐标转换到标准化设备坐标（NDC）
+        // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
         t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
         t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
     }
@@ -215,49 +209,61 @@ void rst::rasterizer::draw_point_triangle(Triangle &t)
     draw_point(t.vertex[2].head<2>(), color);
 }
 
-// Bresenham's line drawing algorithm
+// Bresenham's 画线算法
 void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Color &color)
 {
+    // 坐标四舍五入取整（将浮点坐标转换为像素位置）
     int x_start = static_cast<int>(begin.x + 0.5f);
     int y_start = static_cast<int>(begin.y + 0.5f);
     int x_end = static_cast<int>(end.x + 0.5f);
     int y_end = static_cast<int>(end.y + 0.5f);
 
-    int dx = abs(x_end - x_start);
-    int dy = abs(y_end - y_start);
-    int sx = (x_start < x_end) ? 1 : -1;
-    int sy = (y_start < y_end) ? 1 : -1;
+    // 计算坐标差值和步进方向
+    int dx = abs(x_end - x_start);       // x方向绝对差值
+    int dy = abs(y_end - y_start);       // y方向绝对差值
+    int sx = (x_start < x_end) ? 1 : -1; // x方向步进（正负1）
+    int sy = (y_start < y_end) ? 1 : -1; // y方向步进（正负1）
 
     int x = x_start;
     int y = y_start;
 
+    // 根据斜率选择主步进方向
     if (dx > dy)
-    {
+    { // 当|斜率| < 1时，以x方向为主步进方向
+        /* 误差项初始化公式推导：
+        初始误差 = 2*dy - dx
+        该公式确保了误差的累积能准确反映y方向是否需要步进 */
         int err = dy * 2 - dx;
+
+        // 沿x方向逐点绘制
         for (; x != x_end; x += sx)
         {
             set_pixel({x, y}, color.getVec());
+
+            // 通过误差项判断是否需要调整y坐标
             if (err > 0)
             {
-                y += sy;
-                err -= dx * 2;
+                y += sy;       // y方向步进
+                err -= dx * 2; // 修正误差项（对应斜率累积）
             }
-            err += dy * 2;
+            err += dy * 2; // 每次x步进后累积的误差
         }
-        set_pixel({x, y}, color.getVec());
+        set_pixel({x, y}, color.getVec()); // 绘制终点（确保闭合）
     }
     else
-    {
+    { // 当|斜率| >= 1时，以y方向为主步进方向
+      // 误差项初始化（x和y角色交换）
         int err = dx * 2 - dy;
+        // 沿y方向逐点绘制
         for (; y != y_end; y += sy)
         {
             set_pixel({x, y}, color.getVec());
             if (err > 0)
             {
-                x += sx;
-                err -= dy * 2;
+                x += sx;       // x方向步进
+                err -= dy * 2; // 修正误差项
             }
-            err += dx * 2;
+            err += dx * 2; // 每次y步进后累积的误差
         }
         set_pixel({x, y}, color.getVec());
     }
@@ -265,9 +271,10 @@ void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Colo
 
 void rst::rasterizer::draw_triangle_line(Triangle &t) {
     vertex_shader(vertex_payload, &t);
+
     for (int i = 0; i < 3; ++i)
     {
-        // 将裁剪空间坐标转换到标准化设备坐标（NDC）
+        // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
         t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
         t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
     }
@@ -279,25 +286,24 @@ void rst::rasterizer::draw_triangle_line(Triangle &t) {
     ++triangleCount;
 }
 
-// Screen space rasterization
 void rst::rasterizer::rasterize_triangle(Triangle &t)
 {
     vertex_shader(vertex_payload, &t); // 顶点着色器
-    
+
     for (int i = 0; i < 3; ++i)
     {
         // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
         t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
         t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
     }
-    t.update();       // 更新三角形的边向量
+    t.update(); // 更新三角形的边向量
 
     if (t.double_area2D < 0) // 三角形面积为负，背面剔除
         return;
 
     // 此时三角形已经是屏幕空间三角形
     auto [min_x, min_y, max_x, max_y] = t.getBoundingBox();
-    auto &view_pos = t.viewspace_pos; // 顶点在视空间中的坐标
+    auto &view_pos = t.viewspace_pos; // 顶点在视空间中的坐标（做透视矫正要用）
 
     auto interpolate = [](float alpha, float beta, float gamma, const auto &array)
     { return (alpha * array[0] + beta * array[1] + gamma * array[2]); }; // 对三角形各项属性做插值
@@ -311,13 +317,12 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
         }
         auto [alpha, beta, gamma] = t.computeBarycentric2D(Vec2f{static_cast<float>(x), static_cast<float>(y)}); // 计算像素点的重心坐标
         float z_corrected = 1.0f / (alpha / view_pos[0].z + beta / view_pos[1].z + gamma / view_pos[2].z);
+        float z_interpolated = z_corrected;
 
         // 对重心坐标做透视校正
         float a_corrected = alpha / view_pos[0].z * z_corrected;
         float b_corrected = beta / view_pos[1].z * z_corrected;
         float g_corrected = gamma / view_pos[2].z * z_corrected;
-
-        float z_interpolated = z_corrected;
 
         if (!anti_Aliasing)
         {
@@ -342,6 +347,7 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
         fragment_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.normal).normalize(); // 确保法线是单位向量
         fragment_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.tex_coords);
         fragment_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
+        fragment_payload.amb_light_intensity = scene->amb_light_intensity;
 
         return fragment_shader(fragment_payload, *this);
     };
@@ -354,14 +360,12 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
                 continue;
             Vec3f pixel_color{0.f, 0.f, 0.f};
             if (!anti_Aliasing) {
-                // NO Anti-Aliasing
                 pixel_color = pixel_render(x + 0.5f, y + 0.5f, get_index(x, y));
                 if (pixel_color.x == -1.f)
                     continue;
 
             }else {
                 // 在这里实现抗锯齿
-                samples = 2; // 2x2 mutil-sampling
                 auto ind = get_index(x, y) * samples * samples;
   
                 for (int i = 0; i < samples; ++i)
@@ -478,8 +482,6 @@ void rst::rasterizer::rasterize_triangle_list(std::vector<Triangle> &triangles) 
         //     thread.join();
         // }
     }
-
-    std::swap(back_buf, image->frame_buf);
 }
 
 void rst::rasterizer::draw_obj(const std::unique_ptr<Object> &obj)
@@ -524,4 +526,6 @@ void rst::rasterizer::draw()
         set_material(obj->material);
         draw_obj(obj);
     }
+
+    std::swap(back_buf, image->frame_buf);
 }

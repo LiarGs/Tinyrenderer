@@ -13,17 +13,17 @@ class Material
 {
 public:
     // 基础属性
-    Vec3f Ka;               // 环境光颜色（12 字节）
-    Vec3f Kd;               // 漫反射颜色（12 字节）
-    Vec3f Ks;               // 镜面反射颜色（12 字节）
+    Vec3f Ka;               // 环境光颜色
+    Vec3f Kd;               // 漫反射颜色
+    Vec3f Ks;               // 镜面反射颜色
     float specularExponent; // 高光指数（specular exponent），控制高光反射的集中程度
                             // 值越大，高光范围越小，反射光越集中；值越小，高光范围越大，反射光越分散
                             // 典型取值范围为 1 到 1000，具体值取决于材质的粗糙程度
-    float ior = 1.f;              // 折射率（4 字节）
-    float alpha = 1.f;             // 透明度（4 字节）
+    float ior = 1.f;              // 折射率
+    float alpha = 1.f;             // 透明度
 
     // 枚举和整数类型
-    MaterialType name; // 材质名称（通常是 4 字节）
+    MaterialType name; // 材质名称
 
     // 纹理贴图
     std::string map_Ka;   // 环境光贴图
@@ -37,7 +37,6 @@ public:
 class Object
 {
 public:
-    // 构造函数，接受 MaterialType 参数
     Object(MaterialType type = DIFFUSE_AND_GLOSSY)
     {
         // 根据材质类型初始化 material
@@ -75,16 +74,12 @@ public:
         }
     }
 
-    // 构造函数，接受 Material 对象
     Object(const Material &mat) : material(mat) {}
 
     virtual ~Object() = default;
 
-    // virtual bool intersect(const Vec3f &, const Vec3f &, float &, uint32_t &, Vec2f &) const = 0;
-
     const Material &getSurfaceProperties() const { return material; }
 
-    // material properties
     Material material;
 };
 

@@ -1,11 +1,11 @@
-#pragma once
+﻿#pragma once
 # include "Vec.hpp"
 # include <array>
 
 class Triangle
 {
 public:
-    std::array<Vec3f, 3> vertex; // 三角形在模型空间中的坐标
+    std::array<Vec3f, 3> vertex;        // 三角形在模型空间中的坐标
     std::array<Vec3f, 3> viewspace_pos; // 三角形在视图空间中的坐标
     std::array<Vec3f, 3> color;
     std::array<Vec2f, 3> tex_coords;

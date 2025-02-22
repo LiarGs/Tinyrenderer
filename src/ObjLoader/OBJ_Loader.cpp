@@ -2,13 +2,11 @@
 
 bool objl::Loader::Load(const std::string &path)
 {
-    // If the file is not an .obj file return false
     if (path.substr(path.size() - 4, 4) != ".obj") {
         LOGE("the file is not an .obj file");
         return false;
     }
         
-    
     // 读取模型文件
     std::ifstream in;
     in.open(path, std::ifstream::in);
@@ -17,13 +15,6 @@ bool objl::Loader::Load(const std::string &path)
         LOGE("Failed to open file: {}", path);
         return false;
     }
-
-    _Vertices.clear();
-    _Texture.clear();
-    _Normals.clear();
-    LoadedMeshes.clear();
-    // LoadedVertices.clear();
-    // LoadedIndices.clear();
 
     // 读取模型文件的每一行
     std::string line;
@@ -96,7 +87,6 @@ bool objl::Loader::Load(const std::string &path)
 std::vector<Triangle> objl::LoadTriangleList(const Loader &model)
 {
     std::vector<Triangle> TriangleList;
-    // Load .obj File
     for (const auto &mesh : model.LoadedMeshes)
     {
         for (int i = 0; i < mesh.Vertices.size(); i += 3)
@@ -107,7 +97,7 @@ std::vector<Triangle> objl::LoadTriangleList(const Loader &model)
                 t.setVertex(j, Vec3f{mesh.Vertices[i + j].Position.x, mesh.Vertices[i + j].Position.y, mesh.Vertices[i + j].Position.z});
                 t.setNormal(j, Vec3f{mesh.Vertices[i + j].Normal.x, mesh.Vertices[i + j].Normal.y, mesh.Vertices[i + j].Normal.z});
                 t.setTexCoord(j, Vec2f{mesh.Vertices[i + j].TextureCoordinate.x, mesh.Vertices[i + j].TextureCoordinate.y});
-                t.setColor(j, {148, 121.0, 92.0});
+                t.setColor(j, {148.f, 121.f, 92.f});
             }
             TriangleList.emplace_back(t);
         }

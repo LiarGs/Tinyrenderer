@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <optional>
-#include "threadpool.hpp"
+#include "ThreadPool.hpp"
 #include "Triangle.h"
 #include "Image.h"
 #include "Texture.h"
@@ -8,9 +8,9 @@
 
 namespace rst
 {
+    class rasterizer;
     struct vertex_shader_payload
     {
-        Triangle *triangle;
         Matrix4f model;
         Matrix4f view;
         Matrix4f projection;
@@ -79,12 +79,13 @@ namespace rst
         void set_scene(Scene &scene) { this->scene = &scene; }
         void set_material(Material mat) { 
             material = mat;
-            texture = mat.map_Kd;
+            if (mat.map_Kd.valid)
+                texture = mat.map_Kd;
         }
         void set_pixel(const Vec2i &point, const Vec3f &color);  // 渲染区用
         void set_rendermode(RenderMode mode) { renderMode = mode; }
         void clearBuff(Buffers buff);
-        void show(std::string, int&) const;
+        void show(std::string) const;
 
         void draw_point(const Vec2f p, const Color &color) {
             set_pixel({p.x, p.y}, color.getVec());
@@ -101,11 +102,12 @@ namespace rst
         std::optional<Material> material;
         std::optional<Texture>  texture;
         bool anti_Aliasing = false;
-        int samples = 2;
+        const int samples = 2;
         bool multithreading = false; // 是否启用多线程
     private:
         // 多线程使用
         std::mutex queueMutex; // 任务队列锁
+        std::mutex depth_mutex;
 
     private:
         rasterizer(int w, int h, const std::string &format);

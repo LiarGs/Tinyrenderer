@@ -1,9 +1,7 @@
-#ifndef THREAD_POOL_H
+﻿#ifndef THREAD_POOL_H
 #define THREAD_POOL_H
 
-#include <vector>
 #include <queue>
-#include <memory>
 #include <thread>
 #include <mutex>
 #include <condition_variable>

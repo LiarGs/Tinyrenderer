@@ -20,9 +20,11 @@ public:
         cv::cvtColor(image_data, image_data, cv::COLOR_RGB2BGR);
         width = image_data.cols;
         height = image_data.rows;
+        valid = true;
     }
 
     int width, height;
+    bool valid = false;
 
     Vec3f getColor(float u, float v);
 };
