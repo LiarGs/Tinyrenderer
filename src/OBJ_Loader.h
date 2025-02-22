@@ -2,8 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "Log.h"
-#include "Vec.h"
+#include "Log.hpp"
 #include "Triangle.h"
 
 namespace objl {

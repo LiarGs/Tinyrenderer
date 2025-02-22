@@ -27,7 +27,7 @@ namespace
         return path.filename().string();
     }
 
-} // anonymous namespace
+}
 
 #define LOGI(format_str, ...) std::cerr << std::format("[INFO]{} [{}:{}] " format_str "\n", getTime(), getFile(__FILE__), __LINE__, ##__VA_ARGS__)
 

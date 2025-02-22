@@ -1,5 +1,5 @@
 #pragma once
-# include "Vec.h"
+# include "Vec.hpp"
 # include <array>
 
 class Triangle

@@ -82,7 +82,10 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "xutility": "cpp",
-        "barrier": "cpp"
+        "barrier": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp",
+        "future": "cpp"
     },
     "C_Cpp.default.compilerPath": "cl.exe"
 }

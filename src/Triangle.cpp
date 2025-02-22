@@ -1,5 +1,5 @@
 ﻿#include "Triangle.h"
-#include "Log.h"
+#include "Log.hpp"
 
 // Constructor
 Triangle::Triangle() {

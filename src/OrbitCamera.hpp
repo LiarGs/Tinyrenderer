@@ -1,8 +1,7 @@
-﻿// OrbitCamera.h
-#pragma once
+﻿#pragma once
 #include <opencv2/opencv.hpp>
-#include "Vec.h"
-#include "Scene.h"
+#include "Vec.hpp"
+#include "Scene.hpp"
 
 class OrbitCameraController
 {

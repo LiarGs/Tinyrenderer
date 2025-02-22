@@ -1,7 +1,7 @@
 #pragma once
 #include <opencv2/opencv.hpp>
-#include "Vec.h"
-#include "Log.h"
+#include "Vec.hpp"
+#include "Log.hpp"
 
 class Texture{
 private:

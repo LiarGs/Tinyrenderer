@@ -1,12 +1,7 @@
 ﻿#pragma once
-#include <memory>
-#include <fstream>
-#include <cstdint>
-#include <string>
-#include <vector>
 #include <opencv2/opencv.hpp>
-#include "Log.h"
-#include "Vec.h"
+#include "Log.hpp"
+#include "Vec.hpp"
 namespace rst {
     class rasterizer;
 }

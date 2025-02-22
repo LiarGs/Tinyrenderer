@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "Vec.h"
 #include "Triangle.h"
+#include "Texture.h"
 
 enum MaterialType
 {

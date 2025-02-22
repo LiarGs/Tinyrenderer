@@ -1,9 +1,8 @@
 ﻿#pragma once
-#include "Object.h"
+#include "Object.hpp"
 
-class Light
+struct Light
 {
-public:
     Light(const Vec3f &p, const Vec3f &i)
         : position(p), intensity(i) {}
     virtual ~Light() = default;
@@ -11,8 +10,9 @@ public:
     Vec3f intensity;
 };
 
-struct Camera
+class Camera
 {
+public:
     Vec3f eye_pos;    // 相机位置
     Vec3f target_pos; // 目标位置（相机看向的点）
     Vec3f up_dir;     // 相机的上方向
@@ -80,7 +80,6 @@ private:
     size_t height;
     float aspect_ratio;
     float filedofView;
-    // creating the scene (adding objects and lights)
     std::vector<std::unique_ptr<Object>> objects;
     std::vector<std::unique_ptr<Light>> lights;
     std::shared_ptr<Camera> camera;

@@ -1,12 +1,10 @@
 ﻿#include "OBJ_Loader.h"
-#include "rasterizer.h"
-#include "Materials.h"
-#include "OrbitCamera.h"
+#include "Materials.hpp"
+#include "OrbitCamera.hpp"
+#include "Shader.h"
 
 int main(int argc, char **argv)
 {
-
-
     std::string obj_path = "F:/Computer_Graphic/Tinyrenderer/obj";
 
     objl::Loader model;
@@ -17,18 +15,15 @@ int main(int argc, char **argv)
     else
     {
         // model.Load(obj_path + "/Triangle/triangle.obj");
-        model.Load(obj_path + "/cow/spot_triangulated_good.obj");
+        // model.Load(obj_path + "/cow/spot_triangulated_good.obj");
         // model.Load(obj_path + "/boggie/body.obj");
         // model.Load(obj_path + "/diablo3_pose/diablo3_pose.obj");
-        // model.Load(obj_path + "/african_head/african_head.obj");
+        model.Load(obj_path + "/african_head/african_head.obj");
     }
-
-    const int width = 960;
-    const int height = 960;
 
     auto model_TriangleList = objl::LoadTriangleList(model);
 
-    // 创建一个材质的 Material 对象
+    // 创建材质 Material 对象
     Material blackheadMaterial = Materials::SkinMaterial(obj_path + "/Texture/diffuse.jpg");
     Material whiteheadMaterial = Materials::SkinMaterial(obj_path + "/boggie/head_diffuse.jpg");
     Material bodyMaterial = Materials::SkinMaterial(obj_path + "/boggie/body_diffuse.jpg");
@@ -40,12 +35,14 @@ int main(int argc, char **argv)
     auto l2 = Light{{-20.f, 20.f, 0.f}, {500.f, 500.f, 500.f}};
     auto obj_pos = Vec3f{0.f, 0.f, -4.f};
 
+    const int width = 700;
+    const int height = 700;
     // 获取 Scene 实例
     auto &scene = Scene::get_instance(width, height);
+
     scene.add(std::make_unique<MeshTriangle>(model_TriangleList, blackheadMaterial));
     scene.add(std::make_unique<Light>(l1));
     scene.add(std::make_unique<Light>(l2));
-
     // 获取 rasterizer 实例
     auto &ras = rst::rasterizer::get_instance(width, height, ".png");
     ras.set_scene(scene);
@@ -53,17 +50,17 @@ int main(int argc, char **argv)
     // 设置顶点着色器
     ras.set_vertex_shader(vertex_shader);
 
+    ras.set_rendermode(rst::RenderMode::FACE);
+
     // 设置片着色器类型
-    rst::FragmentShader active_shader = normal_fragment_shader;
+    // rst::FragmentShader active_shader = normal_fragment_shader;
     // rst::FragmentShader active_shader = white_fragment_shader;
     // rst::FragmentShader active_shader = phong_fragment_shader;
-    // rst::FragmentShader active_shader = texture_fragment_shader;
+    rst::FragmentShader active_shader = texture_fragment_shader;
     // rst::FragmentShader active_shader = bump_fragment_shader;
     // rst::FragmentShader active_shader = displacement_fragment_shader;
 
     ras.set_fragment_shader(active_shader);
-    ras.set_texture(scene.get_objects()[0]->material.map_Kd);
-    ras.set_rendermode(rst::RenderMode::FACE);
 
     // 初始化相机控制器
     auto camera = std::make_shared<Camera> (Camera{Vec3f{0.f, 0.f, 0.f}, obj_pos, Vec3f{0.f, 1.f, 0.f}});
@@ -80,7 +77,6 @@ int main(int argc, char **argv)
     auto startTime = cv::getTickCount();
 
     while (key != 27) {
-
         // 设置模型变换
         ras.set_model(
             obj_pos, // 平移
@@ -92,45 +88,18 @@ int main(int argc, char **argv)
 
         // 帧计数
         ++frame_count;
-
         // 计算fps
         double currentTime = (cv::getTickCount() - startTime) / cv::getTickFrequency();
         auto fps = frame_count / currentTime;
         std::string fps_str = "FPS: " + std::to_string(static_cast<int>(fps));
 
-        // 在图像上显示FPS
-        cv::putText(ras.image->cv_image, fps_str, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
-        if (message_show_frame-- > 0)
-        {
-            if (ras.multithreading)
-            {
-                cv::putText(ras.image->cv_image, "multithreading active", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
-            }
-            else
-            {
-                cv::putText(ras.image->cv_image, "multithreading inactive", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
-            }
-        }
-
-        if (message_show_frame-- > 0)
-        {
-            if (ras.anti_Aliasing)
-            {
-                cv::putText(ras.image->cv_image, "SSAA anti_Aliasing active", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
-            }
-            else
-            {
-                cv::putText(ras.image->cv_image, "NO anti_Aliasing", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
-            }
-        }
+        ras.show(fps_str, message_show_frame);
 
         // 重置计数器和计时器
         frame_count = 0;
         startTime = cv::getTickCount();
 
-        ras.show();
-
-        key = cv::waitKey(1);
+        key = cv::pollKey();
         if (key == 'e') {
             ras.set_rendermode(rst::RenderMode::EDGE);
         }else if (key == 'f') {
@@ -143,6 +112,8 @@ int main(int argc, char **argv)
         }else if (key == 'a') {
             ras.anti_Aliasing = !ras.anti_Aliasing;
             message_show_frame = 60;
+        }else if (key == 'p') {
+            cv::waitKey();
         }
     }
 
