@@ -33,9 +33,10 @@ int main(int argc, char **argv)
     Material bodyMaterial = Materials::SkinMaterial(obj_path + "/boggie/body_diffuse.jpg");
     Material monsterMaterial = Materials::SkinMaterial(obj_path + "/diablo3_pose/diablo3_pose_diffuse.jpg");
     Material cowMaterial = Materials::cowMaterial(obj_path + "/cow/spot_texture.png");
+    cowMaterial.map_bump = Texture(obj_path + "/cow/hmap.jpg");
 
-    const int width = 700;
-    const int height = 700;
+    constexpr const int width = 700;
+    constexpr const int height = 700;
     // 获取 Scene 实例
     auto &scene = Scene::get_instance(width, height);
 
@@ -70,14 +71,14 @@ int main(int argc, char **argv)
     ras.set_vertex_shader(vertex_shader);
 
     // 定义片着色器类型数组
-    std::vector<rst::FragmentShader> shaders = {
+    std::vector<rst::PixelShader> shaders = {
         normal_fragment_shader,
         white_fragment_shader,
         phong_fragment_shader,
         texture_fragment_shader,
         bump_fragment_shader,
         displacement_fragment_shader};
-    
+
     // 当前片着色器的索引
     size_t current_shader_index = 0; // 默认使用 normal_fragment_shader
     ras.set_fragment_shader(shaders[current_shader_index]);
@@ -127,10 +128,10 @@ int main(int argc, char **argv)
             ras.set_rendermode(rst::RenderMode::VERTEX);
             break;
         case 'm':
-            ras.multithreading = !ras.multithreading;
+            ras.switch_multi_Thread();
             break;
         case 'a':
-            ras.anti_Aliasing = !ras.anti_Aliasing;
+            ras.switch_anti_Aliasing();
             break;
         case 'p':
             cv::waitKey();

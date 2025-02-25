@@ -18,7 +18,7 @@ namespace rst
         Matrix4f inv_trans;
     };
 
-    struct fragment_shader_payload
+    struct pixel_shader_payload
     {
         Vec3f view_pos;
         Vec3f color;
@@ -27,7 +27,7 @@ namespace rst
         Vec2f tex_coords;
     };
 
-    using FragmentShader = std::function<Vec3f(const fragment_shader_payload &, rasterizer&)>;
+    using PixelShader = std::function<Vec3f(const pixel_shader_payload &, rasterizer &)>;
     using VertexShader = std::function<void(vertex_shader_payload &, Triangle *)>;
 
     enum RenderMode
@@ -74,22 +74,16 @@ namespace rst
         void set_projection(float eye_fov, const float &aspect_ratio, const float &zNear, const float &zFar);
 
         void set_vertex_shader(VertexShader vert_shader) { vertex_shader = vert_shader; }
-        void set_fragment_shader(FragmentShader frag_shader) { fragment_shader = frag_shader; }
+        void set_fragment_shader(PixelShader frag_shader) { fragment_shader = frag_shader; }
 
         void set_scene(Scene &scene) { this->scene = &scene; }
-        void set_material(Material mat) { 
-            material = mat;
-            if (mat.map_Kd.valid)
-                texture = mat.map_Kd;
-        }
+        void set_material(Material &mat) { material = mat; }
         void set_pixel(const Vec2i &point, const Vec3f &color);  // 渲染区用
         void set_rendermode(RenderMode mode) { renderMode = mode; }
         void clearBuff(Buffers buff);
         void show(std::string) const;
 
-        void draw_point(const Vec2f p, const Color &color) {
-            set_pixel({p.x, p.y}, color.getVec());
-        }
+        void draw_point(const Vec2f p, const Color &color) { set_pixel({p.x, p.y}, color.getVec()); }
         void draw_point_triangle(Triangle &t);
         void draw_line(const Vec3f &begin, const Vec3f &end, const Color &color);
         void draw_triangle_line(Triangle &t);
@@ -98,31 +92,35 @@ namespace rst
         void draw_obj(const std::unique_ptr<Object> &obj);
         void draw();
 
-        Scene *scene;
-        std::optional<Material> material;
-        std::optional<Texture>  texture;
-        bool anti_Aliasing = false;
-        const int samples = 2;
-        bool multithreading = false; // 是否启用多线程
+        auto get_scene() const { return scene; }
+        auto& get_material() const { return material; }
+        auto is_multi_Thread() const { return multithreading; }
+        auto is_anti_Aliasing() const { return anti_Aliasing; }
+        void switch_multi_Thread() { multithreading = !multithreading; }
+        void switch_anti_Aliasing() { anti_Aliasing = !anti_Aliasing; }
     private:
         // 多线程使用
         std::mutex queueMutex; // 任务队列锁
-        std::mutex depth_mutex;
+        std::vector<std::mutex> pixel_Mutex;
+        bool multithreading = false;
 
     private:
         rasterizer(int w, int h, const std::string &format);
+        Scene* scene;
+        std::optional<Material> material;
         RenderMode renderMode{FACE};
         size_t triangleCount = 0;
         
-        fragment_shader_payload fragment_payload;
         vertex_shader_payload vertex_payload;
-        FragmentShader fragment_shader;
+        PixelShader fragment_shader;
         VertexShader vertex_shader;
 
         std::vector<float> depth_buf;
         std::vector<Vec3f> back_buf = {}; // 渲染用
 
+        bool anti_Aliasing = false;
         // ssaa抗锯齿用
+        const int samples = 2;
         std::vector<float> super_depth_buf;
         std::vector<Vec3f> super_back_buf = {};
         int get_index(int x, int y) const

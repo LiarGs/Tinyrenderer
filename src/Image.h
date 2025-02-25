@@ -58,12 +58,15 @@ public:
     void set(const int &x, const int &y, const Color &color);
     Color get(const int &x, const int &y) const;
 
-    std::vector<Vec3f> frame_buf = {}; // 储存图像数据
-    cv::Mat cv_image;                  // 储存 cv::Mat 类型图像数据
+    cv::Mat &get_image() { return cv_image; }
+    auto &get_frame_buf() { return frame_buf; }
 
 protected:
     int w = 0;
     int h = 0;
     std::uint8_t bpp;                // 每像素字节数
     std::string format;             // 图像格式png/jpg
+
+    std::vector<Vec3f> frame_buf = {}; // 储存图像数据
+    cv::Mat cv_image;                  // 储存 cv::Mat 类型图像数据
 };

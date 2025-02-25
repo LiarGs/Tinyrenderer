@@ -4,16 +4,8 @@
 
 class Triangle
 {
+
 public:
-    std::array<Vec3f, 3> vertex;        // 三角形在模型空间中的坐标
-    std::array<Vec3f, 3> viewspace_pos; // 三角形在视图空间中的坐标
-    std::array<Vec3f, 3> color;
-    std::array<Vec2f, 3> tex_coords;
-    std::array<Vec3f, 3> normal;
-
-    Vec3f AB, BC, CA;
-    float double_area2D;
-
     Triangle();
     Triangle(const Vec3f& v0,const Vec3f& v1,const Vec3f& v2);
 
@@ -28,18 +20,35 @@ public:
         double_area2D = getDoubleArea2D();
     }
 
-    void setVertex(int ind, const Vec3f &vertex);     /*set i-th vertex coordinates */
-    void setNormal(int ind, const Vec3f &normal);     /*set i-th vertex normal vector*/
-    void setColor(int ind, const Vec3f &color);      /*set i-th vertex color */
-    void setTexCoord(int ind, const Vec2f &uv);          /*set i-th vertex texture coordinate*/
+    std::array<Vec3f, 3> &get_vertex() { return vertex; }
+    std::array<Vec3f, 3> &get_viewspace_pos() { return viewspace_pos; }
+    std::array<Vec3f, 3> &get_normal() { return normal; }
+    std::array<Vec3f, 3> &get_color() { return color; }
+    std::array<Vec2f, 3> &get_tex_coords() { return tex_coords; }
+    auto get_double_area2D() const { return double_area2D; }
+
+    void setVertex(int ind, const Vec3f &vertex);      /*set i-th vertex coordinates */
+    void setNormal(int ind, const Vec3f &normal); /*set i-th vertex normal vector*/
+    void setColor(int ind, const Vec3f &color);   /*set i-th vertex color */
+    void setTexCoord(int ind, const Vec2f &uv);   /*set i-th vertex texture coordinate*/
 
     void setNormals(const std::array<Vec3f, 3> &normals) { normal = normals; };
     void setColors(const std::array<Vec3f, 3> &colors) { color = colors; };
 
-    bool insideTriangle(const Vec3f&) const;
+    bool insideTriangle(const Vec3f &) const;
     std::array<int, 4> getBoundingBox() const;
     float getDoubleArea2D() const { return (AB.x * (-CA.y) - (-CA.x) * AB.y); } // 计算三角形有向面积的两倍
-    std::array<float, 3> computeBarycentric2D(const Vec2f&) const;
+    std::array<float, 3> computeBarycentric2D(const Vec2f &) const;
 
     std::array<Vec4f, 3> toVector4(const std::array<Vec3f, 3> &points, const float &w) const;
+
+private:
+    std::array<Vec3f, 3> vertex;        // 三角形在模型空间中的坐标
+    std::array<Vec3f, 3> viewspace_pos; // 三角形在视图空间中的坐标
+    std::array<Vec3f, 3> color;
+    std::array<Vec2f, 3> tex_coords;
+    std::array<Vec3f, 3> normal;
+
+    Vec3f AB, BC, CA;
+    float double_area2D;
 };

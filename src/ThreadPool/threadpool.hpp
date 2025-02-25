@@ -53,6 +53,7 @@ inline ThreadPool::ThreadPool(size_t threads)
             task();
         }
     };
+    
     for (size_t i = 0; i < threads; ++i)
         workers.emplace_back(work);
 }

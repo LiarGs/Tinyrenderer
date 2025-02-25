@@ -1,13 +1,13 @@
 ﻿#include "Shader.h"
 
-Vec3f normal_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f normal_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
     Vec3f result_color = (payload.normal + Vec3f{1.0f, 1.0f, 1.0f}) / 2;
 
     return result_color * 255;
 }
 
-Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f white_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
     Vec3f white_color = Vec3f{255.f, 255.f, 255.f};
 
@@ -16,7 +16,7 @@ Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
     Vec3f result_color = {0.f, 0.f, 0.f};
 
     // 遍历所有光源
-    for (const auto &light : ras.scene->get_lights())
+    for (const auto &light : ras.get_scene()->get_lights())
     {
         // 计算光照方向
         Vec3f light_dir = (light->position - payload.view_pos).normalize();
@@ -33,26 +33,28 @@ Vec3f white_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
     }
 
     // 添加环境光
-    result_color += ras.material->Ka.cwiseProduct(payload.amb_light_intensity);
+    result_color += ras.get_material()->Ka.cwiseProduct(payload.amb_light_intensity);
 
     return result_color;
 }
 
-Vec3f phong_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f phong_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
-    Vec3f ka = ras.material->Ka;
+    auto material = ras.get_material();
+
+    Vec3f ka = material->Ka;
     Vec3f kd = payload.color;
-    Vec3f ks = ras.material->Ks;
+    Vec3f ks = material->Ks;
 
     Vec3f amb_light_intensity = payload.amb_light_intensity; // 环境光强度
-    auto eye_pos = ras.scene->get_camera()->eye_pos;         // 相机位置
-    float p = ras.material->specularExponent;                // 高光指数
+    auto eye_pos = ras.get_scene()->get_camera()->eye_pos;         // 相机位置
+    float p = material->specularExponent;                          // 高光指数
 
     Vec3f point = payload.view_pos;
     Vec3f normal = payload.normal;
 
     Vec3f result_color = {0, 0, 0};
-    for (auto &light : ras.scene->get_lights())
+    for (auto &light : ras.get_scene()->get_lights())
     {
         // 光照方向
         Vec3f light_dir = (light->position - point).normalize();
@@ -83,26 +85,27 @@ Vec3f phong_fragment_shader(const rst::fragment_shader_payload &payload, rst::ra
     return result_color * 255;
 }
 
-Vec3f texture_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f texture_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
-    Vec3f texture_color = ras.texture.has_value() ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
+    auto material = ras.get_material();
+    Vec3f texture_color = material->map_Kd.has_value() ? material->map_Kd->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
     // 材质属性
-    Vec3f ka = ras.material->Ka;      // 环境光系数
+    Vec3f ka = material->Ka;          // 环境光系数
     Vec3f kd = texture_color / 255.f; // 漫反射系数
-    Vec3f ks = ras.material->Ks;      // 镜面反射系数
+    Vec3f ks = material->Ks;          // 镜面反射系数
 
     // 相机属性
     Vec3f amb_light_intensity = payload.amb_light_intensity;      // 环境光强度
-    auto eye_pos = ras.scene->get_camera()->eye_pos;                // 相机位置
-    float p = ras.material->specularExponent; // 高光指数
+    auto eye_pos = ras.get_scene()->get_camera()->eye_pos;                // 相机位置
+    float p = material->specularExponent; // 高光指数
 
     Vec3f point = payload.view_pos;
     Vec3f normal = payload.normal;
 
     Vec3f result_color = {0, 0, 0};
 
-    for (auto &light : ras.scene->get_lights())
+    for (auto &light : ras.get_scene()->get_lights())
     {
         // 光照方向
         Vec3f light_dir = (light->position - point).normalize();
@@ -133,16 +136,17 @@ Vec3f texture_fragment_shader(const rst::fragment_shader_payload &payload, rst::
     return result_color * 255;
 }
 
-Vec3f bump_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f bump_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
+    auto material = ras.get_material();
     Vec3f normal = payload.normal;
 
     float kh = 0.2f, kn = 0.1f; // kh 和 kn 是控制凹凸效果的参数
 
     // 用于从纹理中获取颜色并计算其亮度（norm）
-    auto texture_intensity = [&payload, &ras](const float u, const float v)
+    auto texture_intensity = [&payload, &material](const float u, const float v)
     {
-        return ras.texture.has_value() ? ras.texture->getColor(u, v).norm() : 1.f;
+        return material->map_bump.has_value() ? material->map_bump->getColor(u, v).norm() : 1.f;
     };
 
     // 获取当前法线的 x, y, z 分量
@@ -154,13 +158,13 @@ Vec3f bump_fragment_shader(const rst::fragment_shader_payload &payload, rst::ras
     float u = payload.tex_coords.x;
     float v = payload.tex_coords.y;
 
-    // 获取纹理的宽度和高度
-    auto w = ras.texture->width;
-    auto h = ras.texture->height;
+    // 获取凹凸贴图的宽度和高度
+    auto w = material->map_Kd->getWidth();
+    auto h = material->map_Kd->getHeight();
 
     // 计算切线向量 tangent
     float sqrt_xz = sqrt(x * x + z * z);
-    auto tangent = Vec3f{x * y / sqrt_xz, sqrt_xz, z * y / sqrt_xz};
+    auto tangent = Vec3f{x * y / sqrt_xz, - sqrt_xz, z * y / sqrt_xz};
 
     // 计算副切线向量 bitangent
     auto bitangent = (normal ^ tangent).normalize();
@@ -182,27 +186,28 @@ Vec3f bump_fragment_shader(const rst::fragment_shader_payload &payload, rst::ras
     return normal * 255;
 }
 
-Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, rst::rasterizer &ras)
+Vec3f displacement_fragment_shader(const rst::pixel_shader_payload &payload, rst::rasterizer &ras)
 {
-    Vec3f texture_color = ras.texture.has_value() ? ras.texture->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
+    auto material = ras.get_material();
+    Vec3f bump_color = material->map_bump.has_value() ? material->map_bump->getColor(payload.tex_coords.x, payload.tex_coords.y) : Vec3f{0, 0, 0};
 
-    Vec3f ka = ras.material->Ka;
-    Vec3f kd = texture_color / 255;
-    Vec3f ks = ras.material->Ks;
+    Vec3f ka = material->Ka;
+    Vec3f kd = bump_color / 255;
+    Vec3f ks = material->Ks;
 
     // 相机属性
     Vec3f amb_light_intensity = payload.amb_light_intensity; // 环境光强度
-    auto eye_pos = ras.scene->get_camera()->eye_pos;         // 相机位置
-    float p = ras.material->specularExponent;             // 高光指数
+    auto eye_pos = ras.get_scene()->get_camera()->eye_pos;   // 相机位置
+    float p = material->specularExponent;             // 高光指数
 
     Vec3f point = payload.view_pos;
     Vec3f normal = payload.normal;
 
-    float kh = 0.2f, kn = 0.1f;
+    float kh = 0.2f, kn = 0.1f; // kh 和 kn 是控制凹凸效果的参数
 
-    auto texture_intensity = [&payload, &ras](const float u, const float v)
+    auto texture_intensity = [&payload, &material](const float u, const float v)
     {
-        return ras.texture.has_value() ? ras.texture->getColor(u, v).norm() : 1.f;
+        return material->map_bump.has_value() ? material->map_bump->getColor(u, v).norm() : 1.f;
     };
 
     // 获取当前法线的 x, y, z 分量
@@ -215,12 +220,12 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
     float v = payload.tex_coords.y;
 
     // 获取纹理的宽度和高度
-    auto w = ras.texture->width;
-    auto h = ras.texture->height;
+    auto w = material->map_Kd->getWidth();
+    auto h = material->map_Kd->getHeight();
 
     // 计算切线向量 tangent
     float sqrt_xz = sqrt(x * x + z * z);
-    auto tangent = Vec3f{x * y / sqrt_xz, sqrt_xz, z * y / sqrt_xz};
+    auto tangent = Vec3f{x * y / sqrt_xz, - sqrt_xz, z * y / sqrt_xz};
 
     // 计算副切线向量 bitangent，通过法线和切线的叉积得到
     auto bitangent = (normal ^ tangent).normalize();
@@ -243,7 +248,7 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
 
     Vec3f result_color = {0, 0, 0};
 
-    for (auto &light : ras.scene->get_lights())
+    for (auto &light : ras.get_scene()->get_lights())
     {
         // 光照方向
         Vec3f light_dir = (light->position - point).normalize();
@@ -276,17 +281,20 @@ Vec3f displacement_fragment_shader(const rst::fragment_shader_payload &payload, 
 
 void vertex_shader(rst::vertex_shader_payload &payload, Triangle *t)
 {
-    auto t_Vec4 = t->toVector4(t->vertex, 1.f);
+    auto t_Vec4 = t->toVector4(t->get_vertex(), 1.f);
 
-    t->viewspace_pos = {
+    auto &viewspace_pos = t->get_viewspace_pos();
+    auto &normal = t->get_normal();
+
+    viewspace_pos = {
         (payload.view * payload.model * t_Vec4[0]).head<3>(),
         (payload.view * payload.model * t_Vec4[1]).head<3>(),
         (payload.view * payload.model * t_Vec4[2]).head<3>()};
 
-    t->normal = {
-        (payload.inv_trans * t->normal[0].toVector4(0.0f)).head<3>(),
-        (payload.inv_trans * t->normal[1].toVector4(0.0f)).head<3>(),
-        (payload.inv_trans * t->normal[2].toVector4(0.0f)).head<3>()};
+    normal = {
+        (payload.inv_trans * normal[0].toVector4(0.0f)).head<3>(),
+        (payload.inv_trans * normal[1].toVector4(0.0f)).head<3>(),
+        (payload.inv_trans * normal[2].toVector4(0.0f)).head<3>()};
 
     for (int i = 0; i < 3; ++i)
     {

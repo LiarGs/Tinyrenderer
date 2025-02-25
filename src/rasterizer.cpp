@@ -1,6 +1,6 @@
 ﻿#include "rasterizer.h"
 
-rst::rasterizer::rasterizer(int w, int h, const std::string &format) : width(w), height(h)
+rst::rasterizer::rasterizer(int w, int h, const std::string &format) : width(w), height(h), pixel_Mutex(w * h)
 {
     image = std::make_unique<Image>(w, h, format);
     depth_buf.resize(w * h, -std::numeric_limits<float>::infinity()); // 初始化为负无穷大
@@ -124,17 +124,14 @@ void rst::rasterizer::set_pixel(const Vec2i &point, const Vec3f &color)
     if (x < 0 || x >= width || y < 0 || y >= height)
         return;
 
-    {
-        // std::lock_guard<std::mutex> lock_image(image_mutex); // 保护帧缓冲区
-        back_buf[get_index(x, y)] = color;
-    }
+    back_buf[get_index(x, y)] = color;
 }
 
 void rst::rasterizer::clearBuff(rst::Buffers buff)
 {
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
-        std::fill(image->frame_buf.begin(), image->frame_buf.end(), Vec3f{0, 0, 0});
+        std::fill(image->get_frame_buf().begin(), image->get_frame_buf().end(), Vec3f{0, 0, 0});
         std::fill(back_buf.begin(), back_buf.end(), Vec3f{0, 0, 0});
         std::fill(super_back_buf.begin(), super_back_buf.end(), Vec3f{0, 0, 0});
         triangleCount = 0;
@@ -149,39 +146,40 @@ void rst::rasterizer::clearBuff(rst::Buffers buff)
 void rst::rasterizer::show(std::string fps_str) const
 {
     // 检查前置缓冲区是否为空
-    if (image->frame_buf.empty())
+    if (image->get_frame_buf().empty())
     {
         LOGE("Image data is empty. Cannot display.");
         return;
     }
 
     // 将图像结果写入image
-    auto data = image->frame_buf.data();
-    image->cv_image = cv::Mat(height, width, CV_32FC3, reinterpret_cast<float *>(data));
+    auto data = image->get_frame_buf().data();
+    auto &cv_image = image->get_image();
+    cv_image = cv::Mat(height, width, CV_32FC3, reinterpret_cast<float *>(data));
 
-    image->cv_image.convertTo(image->cv_image, CV_8UC3, 255.f);
+    cv_image.convertTo(cv_image, CV_8UC3, 255.f);
 
-    cv::cvtColor(image->cv_image, image->cv_image, cv::COLOR_RGB2BGR);
+    cv::cvtColor(cv_image, cv_image, cv::COLOR_RGB2BGR);
 
     // 在图像上显示FPS
-    cv::putText(image->cv_image, fps_str, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+    cv::putText(cv_image, fps_str, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
     if (multithreading)
     {
-        cv::putText(image->cv_image, "multithreading active", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
+        cv::putText(cv_image, "multithreading active", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
     }
     else
     {
-        cv::putText(image->cv_image, "multithreading inactive", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1.5);
+        cv::putText(cv_image, "multithreading inactive", cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
     }
 
     if (anti_Aliasing)
     {
-        cv::putText(image->cv_image, "SSAA anti_Aliasing active", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
+        cv::putText(cv_image, "SSAA anti_Aliasing active", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
     }
     else
     {
-        cv::putText(image->cv_image, "NO anti_Aliasing", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1.5);
+        cv::putText(cv_image, "NO anti_Aliasing", cv::Point(10, 90), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
     }
 
     // 创建窗口标题，显示三角形面数
@@ -190,23 +188,24 @@ void rst::rasterizer::show(std::string fps_str) const
     // 更新窗口标题
     cv::setWindowTitle("Render Window", windowTitle);
 
-    cv::imshow("Render Window", image->cv_image);
+    cv::imshow("Render Window", cv_image);
 }
 
 void rst::rasterizer::draw_point_triangle(Triangle &t)
 {
     vertex_shader(vertex_payload, &t);
+    auto &vertex = t.get_vertex();
     for (int i = 0; i < 3; ++i)
     {
         // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
-        t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
-        t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
+        vertex[i].x = (vertex[i].x + 1.0f) * 0.5f * width;
+        vertex[i].y = (vertex[i].y + 1.0f) * 0.5f * height;
     }
 
     auto color = Color{255, 255, 255};
-    draw_point(t.vertex[0].head<2>(), color);
-    draw_point(t.vertex[1].head<2>(), color);
-    draw_point(t.vertex[2].head<2>(), color);
+    draw_point(vertex[0].head<2>(), color);
+    draw_point(vertex[1].head<2>(), color);
+    draw_point(vertex[2].head<2>(), color);
 }
 
 // Bresenham's 画线算法
@@ -271,12 +270,13 @@ void rst::rasterizer::draw_line(const Vec3f &begin, const Vec3f &end, const Colo
 
 void rst::rasterizer::draw_triangle_line(Triangle &t) {
     vertex_shader(vertex_payload, &t);
+    auto &vertex = t.get_vertex();
 
     for (int i = 0; i < 3; ++i)
     {
         // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
-        t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
-        t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
+        vertex[i].x = (vertex[i].x + 1.0f) * 0.5f * width;
+        vertex[i].y = (vertex[i].y + 1.0f) * 0.5f * height;
     }
 
     auto color = Color{255, 255, 255};
@@ -289,26 +289,27 @@ void rst::rasterizer::draw_triangle_line(Triangle &t) {
 void rst::rasterizer::rasterize_triangle(Triangle &t)
 {
     vertex_shader(vertex_payload, &t); // 顶点着色器
+    auto &vertex = t.get_vertex();
 
     for (int i = 0; i < 3; ++i)
     {
         // 将标准化设备坐标（NDC）坐标转换到屏幕空间坐标
-        t.vertex[i].x = (t.vertex[i].x + 1.0f) * 0.5f * width;
-        t.vertex[i].y = (t.vertex[i].y + 1.0f) * 0.5f * height;
+        vertex[i].x = (vertex[i].x + 1.0f) * 0.5f * width;
+        vertex[i].y = (vertex[i].y + 1.0f) * 0.5f * height;
     }
     t.update(); // 更新三角形的边向量
 
-    if (t.double_area2D < 0) // 三角形面积为负，背面剔除
+    if (t.get_double_area2D() < 0) // 三角形面积为负，背面剔除
         return;
 
     // 此时三角形已经是屏幕空间三角形
     auto [min_x, min_y, max_x, max_y] = t.getBoundingBox();
-    auto &view_pos = t.viewspace_pos; // 顶点在视空间中的坐标（做透视矫正要用）
+    auto view_pos = t.get_viewspace_pos(); // 顶点在视空间中的坐标（做透视矫正、插值要用）
 
     auto interpolate = [](float alpha, float beta, float gamma, const auto &array)
     { return (alpha * array[0] + beta * array[1] + gamma * array[2]); }; // 对三角形各项属性做插值
 
-    // 对单个像素渲染
+    // 对单个像素着色
     auto pixel_render = [&](float x, float y, int ind) -> Vec3f
     {
         if (!t.insideTriangle(Vec3f{x, y, 1.0f}))
@@ -326,14 +327,12 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
 
         if (!anti_Aliasing)
         {
-            // std::lock_guard<std::mutex> lock_depth(depth_mutex); // 保护深度缓冲区
             if (z_interpolated < depth_buf[ind])
             {
                 return {-1.f, 0.f, 0.f};
             }
             depth_buf[ind] = z_interpolated; // 更新z-buffer
         }else {
-            // std::lock_guard<std::mutex> lock_depth(depth_mutex); // 保护深度缓冲区
             if (z_interpolated < super_depth_buf[ind])
             {
                 return {-1.f, 0.f, 0.f};
@@ -341,15 +340,14 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
             super_depth_buf[ind] = z_interpolated; // 更新z-buffer
         }
 
-        fragment_shader_payload fragment_payload;
-        // std::lock_guard<std::mutex> lock_fragment(fragment_payload_mutex); // 保护片着色器缓冲区
-        fragment_payload.color = interpolate(a_corrected, b_corrected, g_corrected, t.color);
-        fragment_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.normal).normalize(); // 确保法线是单位向量
-        fragment_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.tex_coords);
-        fragment_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
-        fragment_payload.amb_light_intensity = scene->amb_light_intensity;
+        pixel_shader_payload pixel_payload;
+        pixel_payload.color = interpolate(a_corrected, b_corrected, g_corrected, t.get_color());
+        pixel_payload.normal = interpolate(a_corrected, b_corrected, g_corrected, t.get_normal()).normalize(); // 确保法线是单位向量
+        pixel_payload.tex_coords = interpolate(a_corrected, b_corrected, g_corrected, t.get_tex_coords());
+        pixel_payload.view_pos = interpolate(a_corrected, b_corrected, g_corrected, view_pos);
+        pixel_payload.amb_light_intensity = scene->amb_light_intensity;
 
-        return fragment_shader(fragment_payload, *this);
+        return fragment_shader(pixel_payload, *this);
     };
 
     for (int y = min_y; y < max_y; ++y)
@@ -358,6 +356,8 @@ void rst::rasterizer::rasterize_triangle(Triangle &t)
         {
             if (x < 0 || x >= width || y < 0 || y >= height)
                 continue;
+
+            std::lock_guard<std::mutex> pixel_lock(pixel_Mutex[x * y + y]);
             Vec3f pixel_color{0.f, 0.f, 0.f};
             if (!anti_Aliasing) {
                 pixel_color = pixel_render(x + 0.5f, y + 0.5f, get_index(x, y));
@@ -415,72 +415,71 @@ void rst::rasterizer::rasterize_triangle_list(std::vector<Triangle> &triangles) 
     }
     else
     {
-        // 引入线程池做多线程
-        ThreadPool mypool(8);
+        // // 引入线程池做多线程
+        // ThreadPool mypool(8);
 
-        switch (renderMode)
+        // switch (renderMode)
+        // {
+        // case FACE:
+        //     for (auto t : triangles)
+        //         mypool.enqueue([this](Triangle &t)
+        //                        { rasterize_triangle(t); }, t);
+        //     break;
+        // case EDGE:
+        //     for (auto t : triangles)
+        //         draw_triangle_line(t);
+        //     break;
+        // case VERTEX:
+        //     for (auto t : triangles)
+        //         draw_point_triangle(t);
+        //     break;
+        // default:
+        //     break;
+        // }
+
+        // 多线程渲染
+        std::queue<Triangle> taskQueue;
+        // 将待渲染三角形添加到队列
+        for (const auto &t : triangles)
         {
-        case FACE:
-            for (auto t : triangles)
-                mypool.enqueue([this](Triangle &t)
-                               { rasterize_triangle(t); }, t);
-            break;
-        case EDGE:
-            for (auto t : triangles)
-                draw_triangle_line(t);
-            break;
-        case VERTEX:
-            for (auto t : triangles)
-                draw_point_triangle(t);
-            break;
-        default:
-            break;
+            taskQueue.push(t);
         }
 
-        // // 多线程渲染
-        // std::queue<Triangle> taskQueue;
-        // // 将待渲染三角形添加到队列
-        // for (const auto &t : triangles)
-        // {
-        //     taskQueue.push(t);
-        // }
+        // 工作线程函数
+        auto worker = [&]()
+        {
+            while (true)
+            {
+                Triangle t;
+                {
+                    std::lock_guard<std::mutex> lock(queueMutex);
+                    if (taskQueue.empty())
+                        break;
+                    t = taskQueue.front();
+                    taskQueue.pop();
+                }
+                if (renderMode == FACE)
+                    rasterize_triangle(t);
+                else if (renderMode == EDGE)
+                    draw_triangle_line(t);
+                else if (renderMode == VERTEX)
+                    draw_point_triangle(t);
+            }
+        };
 
-        // // 工作线程函数
-        // auto worker = [&]()
-        // {
-        //     while (true)
-        //     {
-        //         Triangle t;
-        //         {
-        //             std::lock_guard<std::mutex> lock(queueMutex);
-        //             if (taskQueue.empty())
-        //                 break;
-        //             t = taskQueue.front();
-        //             taskQueue.pop();
-        //         }
-        //         if (renderMode == FACE)
-        //             rasterize_triangle(t);
-        //         else if (renderMode == EDGE)
-        //             draw_triangle_line(t);
-        //         else if (renderMode == VERTEX)
-        //             draw_point_triangle(t);
-        //     }
-        // };
+        // 启动线程
+        const size_t num_threads = std::thread::hardware_concurrency();
+        std::vector<std::thread> threads;
+        for (size_t i = 0; i < num_threads; ++i)
+        {
+            threads.emplace_back(worker);
+        }
 
-        // // 启动线程
-        // // const size_t num_threads = std::thread::hardware_concurrency();
-        // const size_t num_threads = 8;
-        // std::vector<std::thread> threads;
-        // for (size_t i = 0; i < num_threads; ++i)
-        // {
-        //     threads.emplace_back(worker);
-        // }
-
-        // // 等待线程结束
-        // for (auto &thread : threads)
-        // {
-        //     thread.join();
-        // }
+        // 等待线程结束
+        for (auto &thread : threads)
+        {
+            thread.join();
+        }
     }
 }
 
@@ -527,5 +526,5 @@ void rst::rasterizer::draw()
         draw_obj(obj);
     }
 
-    std::swap(back_buf, image->frame_buf);
+    std::swap(back_buf, image->get_frame_buf());
 }

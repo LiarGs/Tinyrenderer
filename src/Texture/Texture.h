@@ -6,6 +6,8 @@
 class Texture{
 private:
     cv::Mat image_data;
+    int width, height;
+    bool valid = false;
 
 public:
     Texture() = default;
@@ -23,8 +25,9 @@ public:
         valid = true;
     }
 
-    int width, height;
-    bool valid = false;
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
+    bool isvalid() const { return valid; }
 
     Vec3f getColor(float u, float v);
 };

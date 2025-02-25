@@ -11,15 +11,16 @@ struct Light
 
 class Camera
 {
-public:
-    Vec3f eye_pos;    // 相机位置
-    Vec3f target_pos; // 目标位置（相机看向的点）
-    Vec3f up_dir;     // 相机的上方向
-
+private:
     // 相机的局部坐标系
     Vec3f Z; // 前向向量（看向 -Z 轴）
     Vec3f X; // 右向向量
     Vec3f Y; // 上向向量
+
+public:
+    Vec3f eye_pos;    // 相机位置
+    Vec3f target_pos; // 目标位置（相机看向的点）
+    Vec3f up_dir;     // 相机的上方向
 
     // 构造函数
     Camera(const Vec3f &eye = {0.f, 0.f, 0.f}, const Vec3f &target = {0.f, 0.f, -1.f}, const Vec3f &up = {0.f, 1.f, 0.f})

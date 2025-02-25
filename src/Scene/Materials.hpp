@@ -27,6 +27,7 @@ namespace Materials
         material.Ks = Vec3f{0.1f, 0.1f, 0.1f};    // 镜面反射，降低以模拟皮肤的粗糙表面
         material.specularExponent = 10.f;         // 高光指数，降低以使高光区域更加柔和
         material.map_Kd = Texture(texturePath);            // 漫反射贴图路径
+        material.map_bump = Texture(texturePath);  // 凹凸贴图路径
         return material;
     }
 
